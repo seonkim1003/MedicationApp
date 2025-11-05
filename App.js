@@ -66,7 +66,7 @@ export default function App() {
 
   const initializeApp = async () => {
     try {
-      console.log('🚀 Initializing MedicationRunner App...');
+      console.log('Initializing MedicationRunner App...');
       setIsLoading(true);
 
       // Initialize services
@@ -85,10 +85,10 @@ export default function App() {
       }
 
       // Load smart lights
-      console.log('💡 Loading smart lights...');
+      console.log('Loading smart lights...');
       const { lights: loadedLights, error } = await smartLightService.getSmartLights();
       if (error) {
-        console.warn('⚠️ Error loading lights:', error);
+        console.warn('Error loading lights:', error);
         Toast.show({
           type: 'warning',
           text1: 'Smart Lights',
@@ -96,15 +96,15 @@ export default function App() {
         });
       } else {
         setLights(loadedLights);
-        console.log(`✅ Loaded ${loadedLights.length} smart lights`);
+        console.log(`Loaded ${loadedLights.length} smart lights`);
       }
 
       // Setup notification handlers
       alarmServiceInstance.setupNotificationHandlers();
 
-      console.log('✅ App initialized successfully');
+      console.log('App initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize app:', error);
+      console.error('Failed to initialize app:', error);
       Alert.alert(
         'Initialization Error',
         'Failed to initialize the app. Some features may not work properly.',
@@ -132,16 +132,41 @@ export default function App() {
     <SafeAreaProvider>
       <PaperProvider>
         <NavigationContainer>
-          <Tab.Navigator
+                      <Tab.Navigator
             screenOptions={{
-              tabBarActiveTintColor: '#3498db',
-              tabBarInactiveTintColor: '#95a5a6',
+              tabBarActiveTintColor: '#007bff',
+              tabBarInactiveTintColor: '#6c757d',
+              tabBarStyle: {
+                backgroundColor: 'white',
+                borderTopWidth: 1,
+                borderTopColor: '#e9ecef',
+                height: 60,
+                paddingBottom: 8,
+                paddingTop: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 8,
+              },
+              tabBarLabelStyle: {
+                fontSize: 12,
+                fontWeight: '600',
+                marginTop: 4,
+              },
               headerStyle: {
-                backgroundColor: '#3498db',
+                backgroundColor: '#007bff',
+                elevation: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
               },
               headerTintColor: '#fff',
               headerTitleStyle: {
-                fontWeight: 'bold',
+                fontWeight: '700',
+                fontSize: 20,
+                letterSpacing: -0.3,
               },
             }}
           >
@@ -150,14 +175,14 @@ export default function App() {
               component={HomeScreen}
               options={{ 
                 tabBarLabel: 'Home',
-                tabBarIcon: () => <Text style={styles.tabIcon}>🏠</Text>
+                tabBarIcon: () => <Text style={styles.tabIcon}>H</Text>
               }}
             />
             <Tab.Screen 
               name="Medications" 
               options={{ 
                 tabBarLabel: 'Medications',
-                tabBarIcon: () => <Text style={styles.tabIcon}>💊</Text>
+                tabBarIcon: () => <Text style={styles.tabIcon}>M</Text>
               }}
             >
               {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
@@ -167,7 +192,7 @@ export default function App() {
               component={CalendarScreen}
               options={{ 
                 tabBarLabel: 'Calendar',
-                tabBarIcon: () => <Text style={styles.tabIcon}>📅</Text>
+                tabBarIcon: () => <Text style={styles.tabIcon}>C</Text>
               }}
             />
             <Tab.Screen 
@@ -175,7 +200,7 @@ export default function App() {
               component={StatisticsScreen}
               options={{ 
                 tabBarLabel: 'Stats',
-                tabBarIcon: () => <Text style={styles.tabIcon}>📊</Text>
+                tabBarIcon: () => <Text style={styles.tabIcon}>S</Text>
               }}
             />
             <Tab.Screen 
@@ -183,7 +208,7 @@ export default function App() {
               component={LightsStack}
               options={{ 
                 tabBarLabel: 'Lights',
-                tabBarIcon: () => <Text style={styles.tabIcon}>💡</Text>
+                tabBarIcon: () => <Text style={styles.tabIcon}>L</Text>
               }}
             />
           </Tab.Navigator>
@@ -208,6 +233,8 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#6c757d',
   },
 });

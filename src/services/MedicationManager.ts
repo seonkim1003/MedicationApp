@@ -26,9 +26,9 @@ class MedicationManager {
     try {
       const jsonString = JSON.stringify(medications);
       await AsyncStorage.setItem(STORAGE_KEYS.MEDICATIONS, jsonString);
-      console.log('💊 Medications saved:', medications.length, 'items');
+      console.log('Medications saved:', medications.length, 'items');
     } catch (error) {
-      console.error('❌ Error saving medications:', error);
+      console.error('Error saving medications:', error);
       throw error;
     }
   }
@@ -45,10 +45,10 @@ class MedicationManager {
         ...med,
         alarms: med.alarms || []
       }));
-      console.log('💊 Medications loaded:', normalizedMedications.length, 'items');
+      console.log('Medications loaded:', normalizedMedications.length, 'items');
       return normalizedMedications;
     } catch (error) {
-      console.error('❌ Error loading medications:', error);
+      console.error('Error loading medications:', error);
       return [];
     }
   }
@@ -58,9 +58,9 @@ class MedicationManager {
       const medications = await this.loadMedications();
       medications.push(medication);
       await this.saveMedications(medications);
-      console.log('✅ Medication added:', medication.name);
+      console.log('Medication added:', medication.name);
     } catch (error) {
-      console.error('❌ Error adding medication:', error);
+      console.error('Error adding medication:', error);
       throw error;
     }
   }
@@ -75,12 +75,12 @@ class MedicationManager {
           updatedAt: new Date().toISOString()
         };
         await this.saveMedications(medications);
-        console.log('✅ Medication updated:', updatedMedication.name);
+        console.log('Medication updated:', updatedMedication.name);
       } else {
-        console.log('⚠️ Medication not found for update:', updatedMedication.name);
+        console.log('Medication not found for update:', updatedMedication.name);
       }
     } catch (error) {
-      console.error('❌ Error updating medication:', error);
+      console.error('Error updating medication:', error);
       throw error;
     }
   }
@@ -90,9 +90,9 @@ class MedicationManager {
       const medications = await this.loadMedications();
       const filteredMedications = medications.filter(m => m.id !== medicationId);
       await this.saveMedications(filteredMedications);
-      console.log('🗑️ Medication deleted:', medicationId);
+      console.log('Medication deleted:', medicationId);
     } catch (error) {
-      console.error('❌ Error deleting medication:', error);
+      console.error('Error deleting medication:', error);
       throw error;
     }
   }
@@ -102,7 +102,7 @@ class MedicationManager {
       const medications = await this.loadMedications();
       return medications.find(m => m.id === medicationId) || null;
     } catch (error) {
-      console.error('❌ Error getting medication:', error);
+      console.error('Error getting medication:', error);
       return null;
     }
   }
@@ -123,18 +123,18 @@ class MedicationManager {
           medications[medicationIndex] = updatedMedication;
           await this.saveMedications(medications);
           
-          console.log(`💊 Pill count decreased for ${medication.name}: ${medication.pillCount} -> ${updatedMedication.pillCount}`);
+          console.log(`Pill count decreased for ${medication.name}: ${medication.pillCount} -> ${updatedMedication.pillCount}`);
           return true;
         } else {
-          console.log(`⚠️ Cannot decrease pill count for ${medication.name}: already at 0`);
+          console.log(`Cannot decrease pill count for ${medication.name}: already at 0`);
           return false;
         }
       } else {
-        console.log('⚠️ Medication not found:', medicationId);
+        console.log('Medication not found:', medicationId);
         return false;
       }
     } catch (error) {
-      console.error('❌ Error decreasing pill count:', error);
+      console.error('Error decreasing pill count:', error);
       return false;
     }
   }
@@ -144,9 +144,9 @@ class MedicationManager {
     try {
       const jsonString = JSON.stringify(alarms);
       await AsyncStorage.setItem(STORAGE_KEYS.ALARMS, jsonString);
-      console.log('⏰ Alarms saved:', alarms.length, 'items');
+      console.log('Alarms saved:', alarms.length, 'items');
     } catch (error) {
-      console.error('❌ Error saving alarms:', error);
+      console.error('Error saving alarms:', error);
       throw error;
     }
   }
@@ -159,7 +159,7 @@ class MedicationManager {
       }
       return JSON.parse(jsonString) as MedicationAlarm[];
     } catch (error) {
-      console.error('❌ Error loading alarms:', error);
+      console.error('Error loading alarms:', error);
       return [];
     }
   }
@@ -169,9 +169,9 @@ class MedicationManager {
       const alarms = await this.loadAlarms();
       alarms.push(alarm);
       await this.saveAlarms(alarms);
-      console.log('✅ Alarm added for:', alarm.medicationName);
+      console.log('Alarm added for:', alarm.medicationName);
     } catch (error) {
-      console.error('❌ Error adding alarm:', error);
+      console.error('Error adding alarm:', error);
       throw error;
     }
   }
@@ -183,10 +183,10 @@ class MedicationManager {
       if (index !== -1) {
         alarms[index] = updatedAlarm;
         await this.saveAlarms(alarms);
-        console.log('✅ Alarm updated for:', updatedAlarm.medicationName);
+        console.log('Alarm updated for:', updatedAlarm.medicationName);
       }
     } catch (error) {
-      console.error('❌ Error updating alarm:', error);
+      console.error('Error updating alarm:', error);
       throw error;
     }
   }
@@ -196,9 +196,9 @@ class MedicationManager {
       const alarms = await this.loadAlarms();
       const filteredAlarms = alarms.filter(a => a.id !== alarmId);
       await this.saveAlarms(filteredAlarms);
-      console.log('🗑️ Alarm deleted:', alarmId);
+      console.log('Alarm deleted:', alarmId);
     } catch (error) {
-      console.error('❌ Error deleting alarm:', error);
+      console.error('Error deleting alarm:', error);
       throw error;
     }
   }
@@ -209,7 +209,7 @@ class MedicationManager {
       const jsonString = JSON.stringify(settings);
       await AsyncStorage.setItem(STORAGE_KEYS.ALARM_SETTINGS, jsonString);
     } catch (error) {
-      console.error('❌ Error saving alarm settings:', error);
+      console.error('Error saving alarm settings:', error);
       throw error;
     }
   }
@@ -229,7 +229,7 @@ class MedicationManager {
       }
       return JSON.parse(jsonString) as AlarmSettings;
     } catch (error) {
-      console.error('❌ Error loading alarm settings:', error);
+      console.error('Error loading alarm settings:', error);
       return {
         isEnabled: true,
         soundEnabled: true,
@@ -246,7 +246,7 @@ class MedicationManager {
       const jsonString = JSON.stringify(settings);
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_SETTINGS, jsonString);
     } catch (error) {
-      console.error('❌ Error saving notification settings:', error);
+      console.error('Error saving notification settings:', error);
       throw error;
     }
   }
@@ -265,7 +265,7 @@ class MedicationManager {
       }
       return JSON.parse(jsonString) as NotificationSettings;
     } catch (error) {
-      console.error('❌ Error loading notification settings:', error);
+      console.error('Error loading notification settings:', error);
       return {
         enabled: true,
         soundEnabled: true,
@@ -280,9 +280,9 @@ class MedicationManager {
   async clearAllData(): Promise<void> {
     try {
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
-      console.log('🗑️ All data cleared');
+      console.log('All data cleared');
     } catch (error) {
-      console.error('❌ Error clearing all data:', error);
+      console.error('Error clearing all data:', error);
       throw error;
     }
   }
