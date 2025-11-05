@@ -33,6 +33,11 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [is24Hour, setIs24Hour] = useState(false); // 12-hour format by default
   const [alarmDays, setAlarmDays] = useState([1, 2, 3, 4, 5]);
 
+  // Refill Pills Modal state
+  const [isRefillVisible, setIsRefillVisible] = useState(false);
+  const [selectedMedicationForRefill, setSelectedMedicationForRefill] = useState(null);
+  const [refillAmount, setRefillAmount] = useState('');
+
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
@@ -239,6 +244,65 @@ export default function MedicationsScreen({ lights, alarmService }) {
     }
   };
 
+  const openRefillModal = (medication) => {
+    setSelectedMedicationForRefill(medication);
+    setRefillAmount('');
+    setIsRefillVisible(true);
+  };
+
+  const refillPillCount = async () => {
+    try {
+      if (!selectedMedicationForRefill) {
+        return;
+      }
+
+      const pillsToAdd = parseInt(refillAmount, 10);
+      if (isNaN(pillsToAdd) || pillsToAdd <= 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Invalid Amount',
+          text2: 'Please enter a valid number',
+        });
+        return;
+      }
+
+      const medicationManager = MedicationManager.getInstance();
+      const medication = await medicationManager.getMedication(selectedMedicationForRefill.id);
+      if (!medication) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Medication not found',
+        });
+        return;
+      }
+
+      const updatedMedication = {
+        ...medication,
+        pillCount: medication.pillCount + pillsToAdd,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await medicationManager.updateMedication(updatedMedication);
+      await loadMedications();
+      setIsRefillVisible(false);
+      setRefillAmount('');
+
+      Toast.show({
+        type: 'success',
+        text1: 'Pills Refilled',
+        text2: `Added ${pillsToAdd} pills. Total: ${updatedMedication.pillCount}`,
+      });
+    } catch (error) {
+      console.error('Error refilling pills:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to refill pills',
+      });
+    }
+  };
+
   const decreasePillCount = async (medicationId) => {
     try {
       const medicationManager = MedicationManager.getInstance();
@@ -328,6 +392,66 @@ export default function MedicationsScreen({ lights, alarmService }) {
     });
     
     return nearest;
+  };
+
+  const deleteAlarm = async (alarmId, medicationId) => {
+    try {
+      Alert.alert(
+        'Delete Alarm',
+        'Are you sure you want to delete this alarm?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const medicationManager = MedicationManager.getInstance();
+                
+                // Delete the alarm
+                await medicationManager.deleteAlarm(alarmId);
+                
+                // Update medication to remove this alarm
+                const medication = await medicationManager.getMedication(medicationId);
+                if (medication) {
+                  const updatedAlarms = (medication.alarms || []).filter(a => a.id !== alarmId);
+                  const updatedMedication = {
+                    ...medication,
+                    alarms: updatedAlarms,
+                  };
+                  await medicationManager.updateMedication(updatedMedication);
+                }
+                
+                // Reschedule all alarms to cancel the notification
+                if (alarmService) {
+                  await alarmService.rescheduleAllMedications();
+                }
+                
+                await loadMedications();
+                
+                Toast.show({
+                  type: 'success',
+                  text1: 'Alarm Deleted',
+                  text2: 'Alarm has been removed',
+                });
+              } catch (error) {
+                console.error('Error deleting alarm:', error);
+                Toast.show({
+                  type: 'error',
+                  text1: 'Error',
+                  text2: 'Failed to delete alarm',
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error showing delete alarm confirmation:', error);
+    }
   };
 
   const deleteMedication = async (medicationId) => {
@@ -443,27 +567,72 @@ export default function MedicationsScreen({ lights, alarmService }) {
                   )}
                 </Text>
                 
+                {/* Connected Lights List - Always show beneath medication details */}
+                {(() => {
+                  // Get all unique light IDs from all alarms for this medication
+                  const allLightIds = new Set();
+                  (medication.alarms || []).forEach(alarm => {
+                    if (alarm.lightIds && alarm.lightIds.length > 0) {
+                      alarm.lightIds.forEach(id => allLightIds.add(id));
+                    }
+                  });
+                  
+                  const connectedLights = lights.filter(light => allLightIds.has(light.id));
+                  
+                  return (
+                    <View style={styles.connectedLightsContainer}>
+                      <Text style={styles.connectedLightsLabel}>
+                        {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
+                      </Text>
+                      {connectedLights.length > 0 ? (
+                        <View style={styles.connectedLightsList}>
+                          {connectedLights.map(light => (
+                            <View key={light.id} style={styles.connectedLightChip}>
+                              <Text style={styles.connectedLightChipText}>{light.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
+                      )}
+                    </View>
+                  );
+                })()}
+                
                 {(medication.alarms || []).map((alarm) => (
                   <View key={alarm.id} style={styles.alarmItem}>
                     <View style={styles.alarmHeader}>
-                      <Text style={styles.alarmTime}>{alarm.time}</Text>
-                      <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+                      <View style={styles.alarmHeaderLeft}>
+                        <Text style={styles.alarmTime}>{alarm.time}</Text>
+                        <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteAlarmButton}
+                        onPress={() => deleteAlarm(alarm.id, medication.id)}
+                      >
+                        <Text style={styles.deleteAlarmButtonText}>✕</Text>
+                      </TouchableOpacity>
                     </View>
                     <Text style={styles.alarmDetails}>
                       Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
-                      {alarm.lightIds && alarm.lightIds.length > 0 && (
-                        <Text> | Lights: {alarm.lightIds.length}</Text>
-                      )}
                     </Text>
                   </View>
                 ))}
                 
-                <TouchableOpacity 
-                  style={styles.pillButton}
-                  onPress={() => decreasePillCount(medication.id)}
-                >
-                  <Text style={styles.pillButtonText}>Take Pill</Text>
-                </TouchableOpacity>
+                <View style={styles.pillButtonsContainer}>
+                  <TouchableOpacity 
+                    style={[styles.pillButton, styles.refillButton]}
+                    onPress={() => openRefillModal(medication)}
+                  >
+                    <Text style={styles.pillButtonText}>Refill Pills</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.pillButton}
+                    onPress={() => decreasePillCount(medication.id)}
+                  >
+                    <Text style={styles.pillButtonText}>Take Pill</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
@@ -739,6 +908,51 @@ export default function MedicationsScreen({ lights, alarmService }) {
         </Pressable>
       </Modal>
 
+      {/* Refill Pills Modal */}
+      <Modal
+        visible={isRefillVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsRefillVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsRefillVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Refill Pills for {selectedMedicationForRefill?.name}</Text>
+
+                <Text style={styles.label}>Number of Pills to Add</Text>
+                <TextInput
+                  placeholder="Enter number of pills"
+                  keyboardType="number-pad"
+                  value={refillAmount}
+                  onChangeText={setRefillAmount}
+                  style={styles.input}
+                />
+
+                <Text style={styles.modalSubtitle}>
+                  Current: {selectedMedicationForRefill?.pillCount || 0} pills
+                </Text>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsRefillVisible(false)}>
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.button} onPress={refillPillCount}>
+                    <Text style={styles.buttonText}>Refill</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
@@ -879,6 +1093,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
+  alarmHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   alarmTime: {
     fontSize: 16,
     fontWeight: '600',
@@ -892,28 +1112,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#dee2e6',
   },
+  deleteAlarmButton: {
+    backgroundColor: '#dc3545',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  deleteAlarmButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   alarmDetails: {
     fontSize: 12,
     color: '#6c757d',
     lineHeight: 18,
+  },
+  pillButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
   },
   pillButton: {
     backgroundColor: '#007bff',
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
-    marginTop: 10,
+    flex: 1,
     shadowColor: '#007bff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
+  refillButton: {
+    backgroundColor: '#28a745',
+    shadowColor: '#28a745',
+  },
   pillButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  connectedLightsContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  connectedLightsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 8,
+  },
+  noLightsText: {
+    fontSize: 12,
+    color: '#adb5bd',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  connectedLightsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  connectedLightChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#e9ecef',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  connectedLightChipText: {
+    color: '#495057',
+    fontSize: 12,
+    fontWeight: '500',
   },
   button: {
     backgroundColor: '#007bff',

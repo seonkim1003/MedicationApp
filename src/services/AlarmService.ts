@@ -6,7 +6,6 @@ import { Medication, MedicationAlarm } from '../types';
 // Configure notification behavior as alarms with sound
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -20,6 +19,7 @@ class AlarmService {
   private isMonitoring: boolean = false;
   private medicationManager: MedicationManager;
   private navigationRef: any = null;
+  private notificationHandlersSetup: boolean = false;
 
   private constructor() {
     this.medicationManager = MedicationManager.getInstance();
@@ -34,12 +34,25 @@ class AlarmService {
 
   async initialize(): Promise<void> {
     try {
-      // Request permissions
+      // Request permissions (iOS-specific options for critical alerts)
+      const permissionsRequest: Notifications.NotificationPermissionsRequest = Platform.OS === 'ios' 
+        ? {
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+              allowAnnouncements: true,
+              allowCriticalAlerts: true, // iOS critical alerts for alarms
+              provideAppNotificationSettings: true,
+            },
+          }
+        : {};
+
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await Notifications.requestPermissionsAsync(permissionsRequest);
         finalStatus = status;
       }
 
@@ -57,6 +70,21 @@ class AlarmService {
           sound: 'default',
           enableVibrate: true,
           showBadge: true,
+        });
+      }
+
+      // Set iOS notification presentation options
+      if (Platform.OS === 'ios') {
+        await Notifications.setNotificationCategoryAsync('alarm', [
+          {
+            identifier: 'TAKE_MEDICATION',
+            buttonTitle: 'I took the medication',
+            options: { opensAppToForeground: true },
+          },
+        ], {
+          intentIdentifiers: [],
+          hiddenPreviewsBodyPlaceholder: 'Medication reminder',
+          categorySummaryFormat: '%u more notifications',
         });
       }
 
@@ -160,27 +188,44 @@ class AlarmService {
           continue;
         }
 
-        // Convert our day system (1=Monday, 7=Sunday) to JS Date system (0=Sunday, 1=Monday)
-        const jsDayOfWeek = dayOfWeek === 7 ? 0 : dayOfWeek;
+        // Convert our day system (1=Monday, 7=Sunday) to expo-notifications (1=Sunday, 2=Monday, ... 7=Saturday)
+        // Our system: 1=Monday, 2=Tuesday, ..., 7=Sunday
+        // Expo system: 1=Sunday, 2=Monday, ..., 7=Saturday
+        // So: Monday (1) -> 2, Tuesday (2) -> 3, ..., Sunday (7) -> 1
+        const expoWeekday = dayOfWeek === 7 ? 1 : dayOfWeek + 1;
 
         // Schedule as a recurring weekly alarm with sound
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `Time to take ${medication.name}`,
-            body: `Don't forget your medication!`,
-            sound: true, // Play default alarm sound
-            vibrate: [0, 250, 250, 250],
-            data: {
-              medicationId: medication.id,
-              alarmId: alarm.id,
-              alarmTime: alarm.time,
-              medicationName: medication.name,
-            },
-            categoryIdentifier: 'alarm',
+        const notificationContent: any = {
+          title: `Time to take ${medication.name}`,
+          body: `Don't forget your medication!`,
+          sound: true, // Play default alarm sound
+          data: {
+            medicationId: medication.id,
+            alarmId: alarm.id,
+            alarmTime: alarm.time,
+            medicationName: medication.name,
           },
+          categoryIdentifier: 'alarm',
+        };
+
+        // Platform-specific properties
+        if (Platform.OS === 'android') {
+          notificationContent.channelId = 'alarms';
+          notificationContent.vibrate = [0, 250, 250, 250];
+          notificationContent.sound = 'default'; // Explicitly set default sound for Android
+        } else if (Platform.OS === 'ios') {
+          // iOS-specific properties for critical alarms with sound
+          notificationContent.sound = 'default'; // Explicitly set default sound for iOS
+          notificationContent.interruptionLevel = 'critical'; // iOS 15+ for time-sensitive notifications
+          notificationContent.relevanceSummary = `Medication reminder: ${medication.name}`;
+          notificationContent.badge = 1;
+        }
+
+        await Notifications.scheduleNotificationAsync({
+          content: notificationContent,
           trigger: {
             type: 'calendar',
-            weekday: jsDayOfWeek + 1, // expo-notifications uses 1-7 where 1 is Sunday
+            weekday: expoWeekday, // expo-notifications uses 1-7 where 1 is Sunday
             hour: hours,
             minute: minutes,
             repeats: true, // Recurring weekly alarm
@@ -192,8 +237,12 @@ class AlarmService {
       }
 
       console.log(`Scheduled ${totalScheduled} recurring alarms for ${medication.name} at ${alarm.time}`);
+      if (totalScheduled === 0) {
+        console.warn(`No alarms scheduled for ${medication.name} - check dayOfWeek array and time format`);
+      }
     } catch (error) {
       console.error('Error scheduling alarm notification:', error);
+      console.error('Alarm details:', { medication: medication.name, alarmTime: alarm.time, daysOfWeek: alarm.daysOfWeek });
     }
   }
 
@@ -240,34 +289,92 @@ class AlarmService {
   }
 
   setupNotificationHandlers(): void {
+    // Only set up handlers once
+    if (this.notificationHandlersSetup) {
+      console.log('Notification handlers already set up, skipping...');
+      return;
+    }
+    
+    this.notificationHandlersSetup = true;
+    console.log('Setting up notification handlers...');
+    
     // Handle notification received while app is in foreground
     Notifications.addNotificationReceivedListener(async (notification) => {
       console.log('Alarm notification received:', notification);
       const data = notification.request.content.data;
-      if (data && data.medicationId && this.navigationRef) {
-        console.log(`Medication alarm: ${data.medicationId}`);
-        // Navigate to alarm screen immediately when notification is received
-        this.navigationRef.navigate('Alarm', {
-          medicationId: data.medicationId,
-          alarmId: data.alarmId,
-          medicationName: data.medicationName || 'Medication',
-          alarmTime: data.alarmTime,
-        });
+      console.log('Notification data:', data);
+      console.log('Navigation ref available:', !!this.navigationRef);
+      console.log('Navigation ref current:', !!this.navigationRef?.current);
+      
+      if (data && data.medicationId) {
+        // Use setTimeout to ensure navigation happens after React state updates
+        setTimeout(() => {
+          if (this.navigationRef && this.navigationRef.current) {
+            console.log(`Navigating to alarm screen for medication: ${data.medicationId}`);
+            try {
+              // Navigate to the Alarm screen in the root stack navigator
+              this.navigationRef.current.navigate('Alarm', {
+                medicationId: data.medicationId,
+                alarmId: data.alarmId,
+                medicationName: data.medicationName || 'Medication',
+                alarmTime: data.alarmTime,
+              });
+              console.log('Successfully navigated to alarm screen');
+            } catch (error) {
+              console.error('Error navigating to alarm screen:', error);
+              console.error('Error details:', JSON.stringify(error, null, 2));
+            }
+          } else {
+            console.warn('Navigation ref not available, cannot navigate to alarm screen');
+            console.warn('Navigation ref:', this.navigationRef);
+          }
+        }, 100);
+      } else {
+        console.warn('Missing medication ID in notification data');
       }
     });
 
-    // Handle notification tapped (when app is in background)
+    // Handle notification tapped (when app is in background or closed)
     Notifications.addNotificationResponseReceivedListener(async (response) => {
-      console.log('Alarm notification tapped:', response);
+      console.log('Alarm notification tapped/opened app:', response);
       const data = response.notification.request.content.data;
-      if (data && data.medicationId && this.navigationRef) {
-        // Navigate to alarm screen when user taps notification
-        this.navigationRef.navigate('Alarm', {
-          medicationId: data.medicationId,
-          alarmId: data.alarmId,
-          medicationName: data.medicationName || 'Medication',
-          alarmTime: data.alarmTime,
-        });
+      console.log('Notification tap data:', data);
+      console.log('Navigation ref available:', !!this.navigationRef);
+      console.log('Navigation ref current:', !!this.navigationRef?.current);
+      
+      if (data && data.medicationId) {
+        // Navigate to alarm screen - use retry logic for when app is closed
+        const navigateToAlarm = (retryCount = 0) => {
+          const maxRetries = 10;
+          
+          if (this.navigationRef && this.navigationRef.current) {
+            console.log(`Navigating to alarm screen (tap/opened) for medication: ${data.medicationId}`);
+            try {
+              // Navigate to the Alarm screen in the root stack navigator
+              this.navigationRef.current.navigate('Alarm', {
+                medicationId: data.medicationId,
+                alarmId: data.alarmId,
+                medicationName: data.medicationName || 'Medication',
+                alarmTime: data.alarmTime,
+              });
+              console.log('Successfully navigated to alarm screen (tap/opened)');
+            } catch (error) {
+              console.error('Error navigating to alarm screen (tap/opened):', error);
+              console.error('Error details:', JSON.stringify(error, null, 2));
+            }
+          } else if (retryCount < maxRetries) {
+            // Retry if navigation ref not ready yet (app might still be loading)
+            console.log(`Navigation ref not ready yet, retrying... (${retryCount + 1}/${maxRetries})`);
+            setTimeout(() => navigateToAlarm(retryCount + 1), 200);
+          } else {
+            console.warn('Navigation ref not available after max retries, cannot navigate to alarm screen');
+          }
+        };
+        
+        // Start navigation with delay to ensure app is ready
+        setTimeout(() => navigateToAlarm(), 500);
+      } else {
+        console.warn('Missing medication ID in notification tap data');
       }
     });
   }
@@ -283,6 +390,48 @@ class AlarmService {
       console.log(`Alarm ${alarmId} cancelled`);
     } catch (error) {
       console.error('Error cancelling alarm:', error);
+      throw error;
+    }
+  }
+
+  // Test function to trigger a notification immediately (for debugging)
+  async testNotification(medicationName: string = 'Test Medication'): Promise<void> {
+    try {
+      console.log('Testing notification...');
+      const notificationContent: any = {
+        title: `Time to take ${medicationName}`,
+        body: `Test alarm notification`,
+        sound: true,
+        data: {
+          medicationId: 'test',
+          alarmId: 'test',
+          alarmTime: new Date().toLocaleTimeString(),
+          medicationName: medicationName,
+        },
+        categoryIdentifier: 'alarm',
+      };
+
+      // Platform-specific properties
+      if (Platform.OS === 'android') {
+        notificationContent.channelId = 'alarms';
+        notificationContent.vibrate = [0, 250, 250, 250];
+        notificationContent.sound = 'default'; // Explicitly set default sound for Android
+      } else if (Platform.OS === 'ios') {
+        notificationContent.sound = 'default'; // Explicitly set default sound for iOS
+        notificationContent.interruptionLevel = 'critical';
+        notificationContent.relevanceSummary = `Test medication reminder: ${medicationName}`;
+        notificationContent.badge = 1;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: notificationContent,
+        trigger: {
+          seconds: 2, // Trigger in 2 seconds
+        },
+      });
+      console.log('Test notification scheduled, will trigger in 2 seconds');
+    } catch (error) {
+      console.error('Error scheduling test notification:', error);
       throw error;
     }
   }

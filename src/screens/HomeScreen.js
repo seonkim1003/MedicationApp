@@ -21,9 +21,26 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     loadDashboard();
     
-    // Refresh every minute
-    const interval = setInterval(loadDashboard, 60000);
-    return () => clearInterval(interval);
+    // Refresh full dashboard every 30 seconds
+    const dashboardInterval = setInterval(loadDashboard, 30000);
+    
+    // Update next alarm time more frequently (every 5 seconds) for accurate countdown
+    const alarmUpdateInterval = setInterval(async () => {
+      try {
+        const medicationManager = MedicationManager.getInstance();
+        const medications = await medicationManager.loadMedications();
+        const allAlarms = await medicationManager.loadAlarms();
+        const nextAlarm = calculateNextAlarmTime(medications, allAlarms);
+        setNextAlarmTime(nextAlarm);
+      } catch (error) {
+        console.error('Error updating next alarm time:', error);
+      }
+    }, 5000);
+    
+    return () => {
+      clearInterval(dashboardInterval);
+      clearInterval(alarmUpdateInterval);
+    };
   }, []);
 
   const loadDashboard = async () => {
@@ -119,10 +136,9 @@ export default function HomeScreen({ navigation }) {
   const calculateNextAlarmTime = (medications, allAlarms) => {
     try {
       const now = moment();
-      let nextAlarm = null;
-      let minTime = null;
+      const futureAlarms = [];
 
-      // Check alarms for the next 7 days
+      // Collect all future alarms across the next 7 days
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         const checkDate = moment(now).add(dayOffset, 'days');
         const dayOfWeek = checkDate.day() === 0 ? 7 : checkDate.day();
@@ -145,16 +161,21 @@ export default function HomeScreen({ navigation }) {
 
             // Only consider future alarms
             if (alarmMoment.isAfter(now)) {
-              if (!minTime || alarmMoment.isBefore(minTime)) {
-                minTime = alarmMoment;
-                nextAlarm = alarmMoment.toISOString();
-              }
+              futureAlarms.push(alarmMoment);
             }
           });
         });
       }
 
-      return nextAlarm;
+      // Sort all future alarms by time and return the earliest one
+      if (futureAlarms.length === 0) {
+        return null;
+      }
+
+      futureAlarms.sort((a, b) => a.valueOf() - b.valueOf());
+      const nextAlarm = futureAlarms[0];
+      
+      return nextAlarm.toISOString();
     } catch (error) {
       console.error('Error calculating next alarm:', error);
       return null;
@@ -166,22 +187,41 @@ export default function HomeScreen({ navigation }) {
       const historyService = HistoryService.getInstance();
       const medicationManager = MedicationManager.getInstance();
       
-      // Record in history
-      await historyService.recordMedicationTaken(
-        medication.id,
-        medication.name
-      );
+      // Check if medication has pills available
+      if (medication.pillCount <= 0) {
+        Toast.show({
+          type: 'warning',
+          text1: 'No Pills Available',
+          text2: `${medication.name} has no pills left`,
+        });
+        return;
+      }
 
-      // Decrease pill count
-      await medicationManager.decreasePillCount(medication.id);
+      // Decrease pill count first
+      const success = await medicationManager.decreasePillCount(medication.id);
       
-      Toast.show({
-        type: 'success',
-        text1: 'Medication Taken',
-        text2: `${medication.name} recorded`,
-      });
+      if (success) {
+        // Record in history after successful decrease
+        await historyService.recordMedicationTaken(
+          medication.id,
+          medication.name
+        );
+        
+        Toast.show({
+          type: 'success',
+          text1: 'Medication Taken',
+          text2: `${medication.name} recorded`,
+        });
 
-      await loadDashboard();
+        // Reload dashboard to update pill counts
+        await loadDashboard();
+      } else {
+        Toast.show({
+          type: 'warning',
+          text1: 'Cannot Take Pill',
+          text2: `${medication.name} has no pills left`,
+        });
+      }
     } catch (error) {
       console.error('Error marking as taken:', error);
       Toast.show({

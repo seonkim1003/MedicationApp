@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, Alert } from 'react-native';
+import { StyleSheet, View, Text, Alert, AppState } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
 
 // Import services
@@ -78,10 +79,109 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (alarmService && navigationRef.current) {
-      alarmService.setNavigationRef(navigationRef.current);
-      alarmService.setupNotificationHandlers();
-    }
+    if (!alarmService) return;
+    
+    // Set up navigation ref with retry logic
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    const setupNavigation = () => {
+      if (navigationRef.current) {
+        console.log('Setting navigation ref for alarm service');
+        alarmService.setNavigationRef(navigationRef);
+        alarmService.setupNotificationHandlers();
+      } else if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`Navigation ref not ready yet, retrying... (${retryCount}/${maxRetries})`);
+        setTimeout(setupNavigation, 200);
+      } else {
+        console.warn('Failed to set up navigation ref after maximum retries');
+      }
+    };
+    
+    // Small delay to ensure NavigationContainer is mounted
+    setTimeout(setupNavigation, 300);
+  }, [alarmService]);
+
+  // Handle app opened from notification (when app is closed/background)
+  useEffect(() => {
+    let pendingNotification = null;
+
+    const navigateToAlarmScreen = (data, retryCount = 0) => {
+      const maxRetries = 15;
+      
+      if (!data || !data.medicationId) {
+        return;
+      }
+
+      if (navigationRef.current && alarmService) {
+        try {
+          console.log('Navigating to alarm screen from notification:', data.medicationId);
+          navigationRef.current.navigate('Alarm', {
+            medicationId: data.medicationId,
+            alarmId: data.alarmId,
+            medicationName: data.medicationName || 'Medication',
+            alarmTime: data.alarmTime,
+          });
+          console.log('✅ Successfully navigated to alarm screen');
+          pendingNotification = null; // Clear after successful navigation
+        } catch (error) {
+          console.error('Error navigating to alarm screen:', error);
+          if (retryCount < maxRetries) {
+            setTimeout(() => navigateToAlarmScreen(data, retryCount + 1), 300);
+          }
+        }
+      } else if (retryCount < maxRetries) {
+        // Retry if navigation not ready yet
+        console.log(`Navigation not ready, retrying... (${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => navigateToAlarmScreen(data, retryCount + 1), 300);
+      } else {
+        console.warn('Navigation not available after max retries');
+      }
+    };
+
+    const checkInitialNotification = async () => {
+      try {
+        // Check if app was opened from a notification
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          const data = response.notification.request.content.data;
+          console.log('📱 App opened from notification:', data);
+          
+          if (data && data.medicationId) {
+            pendingNotification = data;
+            // Try to navigate immediately
+            navigateToAlarmScreen(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking initial notification:', error);
+      }
+    };
+
+    // Check when app comes to foreground
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground - check for notification
+        console.log('App state changed to active, checking for notifications...');
+        checkInitialNotification();
+        
+        // Also try to navigate if we have a pending notification
+        if (pendingNotification) {
+          navigateToAlarmScreen(pendingNotification);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkInitialNotification();
+
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
   }, [alarmService]);
 
   const initializeApp = async () => {
@@ -149,7 +249,42 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <PaperProvider>
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer 
+            ref={navigationRef}
+            onReady={async () => {
+              console.log('NavigationContainer is ready');
+              if (alarmService && navigationRef.current) {
+                console.log('Setting navigation ref after container ready');
+                alarmService.setNavigationRef(navigationRef);
+                alarmService.setupNotificationHandlers();
+                
+                // Check for notification that opened the app after navigation is ready
+                try {
+                  const response = await Notifications.getLastNotificationResponseAsync();
+                  if (response) {
+                    const data = response.notification.request.content.data;
+                    if (data && data.medicationId) {
+                      console.log('Navigating to alarm screen after NavigationContainer ready');
+                      setTimeout(() => {
+                        try {
+                          navigationRef.current?.navigate('Alarm', {
+                            medicationId: data.medicationId,
+                            alarmId: data.alarmId,
+                            medicationName: data.medicationName || 'Medication',
+                            alarmTime: data.alarmTime,
+                          });
+                        } catch (error) {
+                          console.error('Error navigating after container ready:', error);
+                        }
+                      }, 500);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error checking notification after container ready:', error);
+                }
+              }
+            }}
+          >
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Main">
                 {() => <MainTabs lights={lights} alarmService={alarmService} />}
@@ -160,12 +295,38 @@ export default function App() {
                 options={{
                   presentation: 'modal',
                   headerShown: false,
+                  gestureEnabled: false,
+                  animationEnabled: true,
                 }}
               />
             </Stack.Navigator>
           </NavigationContainer>
           <StatusBar style="auto" />
-          <Toast />
+          <Toast 
+            config={{
+              warning: ({ text1, text2 }) => (
+                <View style={{
+                  height: 60,
+                  width: '90%',
+                  backgroundColor: '#ffc107',
+                  borderRadius: 10,
+                  padding: 15,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                }}>
+                  <View style={{ flex: 1 }}>
+                    {text1 && <Text style={{ fontSize: 16, fontWeight: '700', color: '#212529', marginBottom: 4 }}>{text1}</Text>}
+                    {text2 && <Text style={{ fontSize: 14, color: '#212529' }}>{text2}</Text>}
+                  </View>
+                </View>
+              ),
+            }}
+          />
         </PaperProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

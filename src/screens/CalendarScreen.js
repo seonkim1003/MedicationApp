@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { Calendar } from 'react-native-calendars';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
 import { Medication, MedicationAlarm, DAYS_OF_WEEK } from '../types';
@@ -14,9 +13,8 @@ export default function CalendarScreen() {
   const [medications, setMedications] = useState([]);
   const [allAlarms, setAllAlarms] = useState([]);
   const [history, setHistory] = useState([]);
-  const [markedDates, setMarkedDates] = useState({});
-  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
-  const [selectedDateSchedule, setSelectedDateSchedule] = useState([]);
+  const [currentWeekStart, setCurrentWeekStart] = useState(moment().startOf('week'));
+  const [weekSchedule, setWeekSchedule] = useState({});
 
   useEffect(() => {
     loadData();
@@ -36,12 +34,9 @@ export default function CalendarScreen() {
       setAllAlarms(loadedAlarms);
       setHistory(loadedHistory);
 
-      // Build marked dates
-      const marked = buildMarkedDates(loadedMedications, loadedAlarms, loadedHistory);
-      setMarkedDates(marked);
-
-      // Set initial selected date schedule
-      updateSelectedDateSchedule(moment().format('YYYY-MM-DD'), loadedMedications, loadedAlarms, loadedHistory);
+      // Build weekly schedule
+      const schedule = buildWeekSchedule(loadedMedications, loadedAlarms, loadedHistory, currentWeekStart);
+      setWeekSchedule(schedule);
     } catch (error) {
       console.error('Error loading calendar data:', error);
       Toast.show({
@@ -54,104 +49,68 @@ export default function CalendarScreen() {
     }
   };
 
-  const buildMarkedDates = (meds, alarms, hist) => {
-    const marked = {};
-    const endDate = moment().add(30, 'days');
-    const startDate = moment().subtract(7, 'days');
-
-    // Mark scheduled medication days
-    alarms.forEach(alarm => {
-      if (!alarm.isEnabled) return;
-
-      const ourDays = alarm.daysOfWeek.map(d => d === 7 ? 0 : d);
-      let current = startDate.clone();
-
-      while (current.isBefore(endDate)) {
-        if (ourDays.includes(current.day())) {
-          const dateStr = current.format('YYYY-MM-DD');
-          if (!marked[dateStr]) {
-            marked[dateStr] = {
-              marked: true,
-              dotColor: '#3498db',
-              selectedColor: '#3498db',
-            };
-          }
-        }
-        current.add(1, 'day');
-      }
-    });
-
-    // Mark taken medications
-    hist.forEach(entry => {
-      const dateStr = moment(entry.takenAt).format('YYYY-MM-DD');
-      if (!marked[dateStr]) {
-        marked[dateStr] = {};
-      }
-      marked[dateStr].selected = true;
-      marked[dateStr].selectedColor = '#2ecc71';
-      marked[dateStr].dots = marked[dateStr].dots || [];
-      marked[dateStr].dots.push({ color: '#2ecc71', selectedDotColor: '#2ecc71' });
-    });
-
-    // Mark today
-    const todayStr = moment().format('YYYY-MM-DD');
-    if (marked[todayStr]) {
-      marked[todayStr].today = true;
-      marked[todayStr].marked = true;
-      marked[todayStr].textColor = 'white';
-    } else {
-      marked[todayStr] = {
-        today: true,
-        selected: true,
-        selectedColor: '#3498db',
-        textColor: 'white',
-      };
-    }
-
-    return marked;
-  };
-
-  const updateSelectedDateSchedule = (dateStr, meds, alarms, hist) => {
-    const date = moment(dateStr);
-    const dayOfWeek = date.day() === 0 ? 7 : date.day(); // Convert to our system
-
-    const schedule = [];
-
-    // Get scheduled medications for this day
-    alarms.forEach(alarm => {
-      if (!alarm.isEnabled) return;
-      const ourDays = alarm.daysOfWeek.map(d => d === 7 ? 0 : d);
-      const jsDay = dayOfWeek === 7 ? 0 : dayOfWeek;
-
-      if (ourDays.includes(jsDay)) {
-        const medication = meds.find(m => m.id === alarm.medicationId);
-        if (medication) {
-          schedule.push({
-            ...alarm,
-            medication,
-            isTaken: hist.some(h => 
+  const buildWeekSchedule = (meds, alarms, hist, weekStartDate = null) => {
+    const schedule = {};
+    const weekStart = weekStartDate ? weekStartDate.clone() : currentWeekStart.clone();
+    
+    // Build schedule for each day of the week
+    for (let i = 0; i < 7; i++) {
+      const date = weekStart.clone().add(i, 'days');
+      const dateStr = date.format('YYYY-MM-DD');
+      const dayOfWeek = date.day() === 0 ? 7 : date.day(); // Convert to our system (1=Monday, 7=Sunday)
+      
+      const daySchedule = [];
+      
+      // Get scheduled medications for this day
+      alarms.forEach(alarm => {
+        if (!alarm.isEnabled) return;
+        
+        if (alarm.daysOfWeek.includes(dayOfWeek)) {
+          const medication = meds.find(m => m.id === alarm.medicationId);
+          if (medication) {
+            const isTaken = hist.some(h => 
               h.medicationId === alarm.medicationId &&
               moment(h.takenAt).format('YYYY-MM-DD') === dateStr
-            ),
-          });
+            );
+            
+            daySchedule.push({
+              ...alarm,
+              medication,
+              isTaken,
+            });
+          }
         }
-      }
-    });
-
-    // Sort by time
-    schedule.sort((a, b) => {
-      const timeA = moment(a.time, 'HH:mm');
-      const timeB = moment(b.time, 'HH:mm');
-      return timeA.diff(timeB);
-    });
-
-    setSelectedDateSchedule(schedule);
+      });
+      
+      // Sort by time
+      daySchedule.sort((a, b) => {
+        const timeA = moment(a.time, 'HH:mm');
+        const timeB = moment(b.time, 'HH:mm');
+        return timeA.diff(timeB);
+      });
+      
+      schedule[dateStr] = {
+        date: date,
+        dateStr: dateStr,
+        schedule: daySchedule,
+        isToday: date.isSame(moment(), 'day'),
+      };
+    }
+    
+    return schedule;
   };
 
-  const onDayPress = (day) => {
-    setSelectedDate(day.dateString);
-    updateSelectedDateSchedule(day.dateString, medications, allAlarms, history);
+  const changeWeek = (direction) => {
+    const newWeekStart = currentWeekStart.clone().add(direction, 'weeks');
+    setCurrentWeekStart(newWeekStart);
   };
+
+  useEffect(() => {
+    if (medications.length > 0 || allAlarms.length > 0 || history.length > 0) {
+      const schedule = buildWeekSchedule(medications, allAlarms, history, currentWeekStart);
+      setWeekSchedule(schedule);
+    }
+  }, [currentWeekStart, medications, allAlarms, history]);
 
   if (isLoading) {
     return (
@@ -161,91 +120,77 @@ export default function CalendarScreen() {
     );
   }
 
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    weekDays.push(currentWeekStart.clone().add(i, 'days'));
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📅 Medication Calendar</Text>
+        <Text style={styles.title}>📅 Weekly Schedule</Text>
 
-        {/* Calendar */}
-        <View style={styles.section}>
-          <Calendar
-            current={selectedDate}
-            markedDates={markedDates}
-            onDayPress={onDayPress}
-            markingType="multi-dot"
-            theme={{
-              todayTextColor: '#3498db',
-              selectedDayBackgroundColor: '#3498db',
-              selectedDayTextColor: '#ffffff',
-              arrowColor: '#3498db',
-              monthTextColor: '#2c3e50',
-              textDayFontWeight: '500',
-              textMonthFontWeight: 'bold',
-              textDayHeaderFontWeight: '600',
-            }}
-            style={styles.calendar}
-          />
-        </View>
-
-        {/* Selected Date Schedule */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Schedule for {moment(selectedDate).format('MMMM DD, YYYY')}
+        {/* Week Navigation */}
+        <View style={styles.weekNavigation}>
+          <TouchableOpacity style={styles.weekNavButton} onPress={() => changeWeek(-1)}>
+            <Text style={styles.weekNavButtonText}>← Prev</Text>
+          </TouchableOpacity>
+          <Text style={styles.weekRange}>
+            {currentWeekStart.format('MMM D')} - {currentWeekStart.clone().add(6, 'days').format('MMM D, YYYY')}
           </Text>
-          {selectedDateSchedule.length > 0 ? (
-            selectedDateSchedule.map((item) => (
-              <View 
-                key={item.id} 
-                style={[
-                  styles.scheduleItem,
-                  item.isTaken && styles.scheduleItemTaken
-                ]}
-              >
-                <View style={styles.scheduleHeader}>
-                  <Text style={styles.scheduleTime}>{item.time}</Text>
-                  {item.isTaken && (
-                    <View style={styles.takenBadge}>
-                      <Text style={styles.takenBadgeText}>✓ Taken</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.scheduleMedication}>{item.medicationName}</Text>
-                <View style={styles.scheduleDetails}>
-                  <View style={[styles.colorIndicator, { backgroundColor: item.lightColor }]} />
-                  <Text style={styles.scheduleDetailsText}>
-                    {item.lightIds.length} light(s) | {item.medication.pillCount} pills left
-                  </Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No medications scheduled for this day</Text>
-          )}
+          <TouchableOpacity style={styles.weekNavButton} onPress={() => changeWeek(1)}>
+            <Text style={styles.weekNavButtonText}>Next →</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Legend */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Legend</Text>
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#3498db' }]} />
-              <Text style={styles.legendText}>Scheduled</Text>
+        {/* Weekly Schedule */}
+        {weekDays.map((day, index) => {
+          const dateStr = day.format('YYYY-MM-DD');
+          const dayData = weekSchedule[dateStr];
+          const isToday = day.isSame(moment(), 'day');
+          
+          return (
+            <View key={dateStr} style={styles.daySection}>
+              <View style={[styles.dayHeader, isToday && styles.dayHeaderToday]}>
+                <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
+                  {DAYS_OF_WEEK.find(d => d.id === (day.day() === 0 ? 7 : day.day()))?.name || day.format('dddd')}
+                </Text>
+                <Text style={[styles.dayDate, isToday && styles.dayDateToday]}>
+                  {day.format('MMM D')}
+                </Text>
+              </View>
+              
+              {dayData && dayData.schedule.length > 0 ? (
+                dayData.schedule.map((item) => (
+                  <View 
+                    key={item.id} 
+                    style={[
+                      styles.scheduleItem,
+                      item.isTaken && styles.scheduleItemTaken
+                    ]}
+                  >
+                    <View style={styles.scheduleHeader}>
+                      <Text style={styles.scheduleTime}>{item.time}</Text>
+                      {item.isTaken && (
+                        <View style={styles.takenBadge}>
+                          <Text style={styles.takenBadgeText}>✓</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.scheduleMedication}>{item.medicationName}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyDayText}>No medications scheduled</Text>
+              )}
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#2ecc71' }]} />
-              <Text style={styles.legendText}>Taken</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#e74c3c' }]} />
-              <Text style={styles.legendText}>Missed</Text>
-            </View>
-          </View>
-        </View>
+          );
+        })}
 
         {/* Refresh Button */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.button} onPress={loadData}>
-            <Text style={styles.buttonText}>Refresh Calendar</Text>
+            <Text style={styles.buttonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -288,9 +233,80 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  calendar: {
+  weekNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  weekNavButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+  },
+  weekNavButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  weekRange: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  daySection: {
+    backgroundColor: 'white',
     borderRadius: 10,
-    elevation: 4,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  dayHeaderToday: {
+    backgroundColor: '#e7f3ff',
+    marginHorizontal: -12,
+    marginTop: -12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  dayName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  dayNameToday: {
+    color: '#3498db',
+  },
+  dayDate: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  dayDateToday: {
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  emptyDayText: {
+    fontSize: 12,
+    color: '#95a5a6',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -389,6 +405,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+
 
 
 

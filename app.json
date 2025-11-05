@@ -16,12 +16,14 @@
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "background-fetch",
           "background-processing"
         ],
         "NSCameraUsageDescription": "This app needs access to camera for medication scanning",
         "NSMicrophoneUsageDescription": "This app needs access to microphone for voice reminders"
-      }
+      },
+      "bundleIdentifier": "com.example.medicaionrunner"
     },
     "android": {
       "adaptiveIcon": {

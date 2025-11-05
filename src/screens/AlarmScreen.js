@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Notifications from 'expo-notifications';
 import MedicationManager from '../services/MedicationManager';
+import HistoryService from '../services/HistoryService';
 
 const AlarmScreen = ({ route, navigation }) => {
   const { medicationId, alarmId, medicationName, alarmTime } = route.params || {};
@@ -10,60 +11,74 @@ const AlarmScreen = ({ route, navigation }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const soundRef = useRef(null);
 
+  useLayoutEffect(() => {
+    // Prevent gesture-based dismissal
+    navigation.setOptions({
+      gestureEnabled: false,
+      headerShown: false,
+    });
+  }, [navigation]);
+
   useEffect(() => {
     playAlarmSound();
     
-    // Set up continuous vibration if needed
+    // Prevent back button from dismissing the alarm on Android only
+    let backHandler = null;
     if (Platform.OS === 'android') {
-      // Android handles vibration through notifications
+      backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // Return true to prevent default back behavior
+        return true;
+      });
     }
 
     return () => {
+      if (backHandler) {
+        backHandler.remove();
+      }
       stopAlarmSound();
     };
   }, []);
 
   const playAlarmSound = async () => {
     try {
-      // Set audio mode to allow playback even in silent mode
-      await Audio.setAudioModeAsync({
+      // Set audio mode to allow playback even in silent mode (iOS-specific)
+      // Only set essential audio mode settings - notification system handles sound
+      const audioModeConfig = {
         allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
+        playsInSilentModeIOS: true, // Important: allows notifications to play in silent mode
         staysActiveInBackground: true,
+        // Note: interruptionModeIOS and interruptionModeAndroid are optional
+        // Only set them if constants are available
+        ...(Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX !== undefined && {
+          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        }),
+        ...(Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX !== undefined && {
+          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        }),
         shouldDuckAndroid: false,
         playThroughEarpieceAndroid: false,
-      });
+      };
 
-      // Try to play a simple beep sound repeatedly
-      // Note: In production, you should bundle a proper alarm sound file in assets
-      // For now, we'll create a simple tone using a data URI or use a fallback
-      try {
-        // Using a simple approach - create a beep pattern
-        // In production, replace this with a bundled alarm sound: require('../assets/alarm.mp3')
-        const { sound: alarmSound } = await Audio.Sound.createAsync(
-          { uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-          { shouldPlay: true, isLooping: true, volume: 1.0 }
-        );
+      await Audio.setAudioModeAsync(audioModeConfig);
 
-        soundRef.current = alarmSound;
-        setSound(alarmSound);
-        setIsPlaying(true);
-
-        // Keep playing sound continuously
-        alarmSound.setOnPlaybackStatusUpdate((status) => {
-          if (status.didJustFinish && !status.isLooping) {
-            // Restart if it somehow stops
-            alarmSound.replayAsync();
-          }
-        });
-      } catch (soundError) {
-        console.warn('Could not load remote sound, using notification sound only:', soundError);
-        // The notification system will handle the sound, but we'll still show the screen
-        setIsPlaying(true);
-      }
+      // The notification system already plays the alarm sound
+      // We mark as playing to show the screen is active
+      // Optionally, you can add a bundled alarm sound file here:
+      // const { sound: alarmSound } = await Audio.Sound.createAsync(
+      //   require('../assets/alarm.mp3'),
+      //   { shouldPlay: true, isLooping: true, volume: 1.0 }
+      // );
+      
+      setIsPlaying(true);
+      
+      // Note: The notification sound is already handled by the AlarmService
+      // The notification system will play the sound when the alarm triggers
+      // This screen is displayed when the alarm notification is received
+      
     } catch (error) {
       console.error('Error setting up alarm sound:', error);
-      // Still show the alarm screen even if sound fails
+      // Still show the alarm screen even if sound setup fails
+      // The notification system will still play its sound
       setIsPlaying(true);
     }
   };
@@ -87,21 +102,60 @@ const AlarmScreen = ({ route, navigation }) => {
       // Stop the alarm sound
       await stopAlarmSound();
 
+      // Decrease pill count and record history if medication ID is available
+      if (medicationId) {
+        try {
+          const medicationManager = MedicationManager.getInstance();
+          const historyService = HistoryService.getInstance();
+          
+          // Get medication to check if it exists and has pills
+          const medication = await medicationManager.getMedication(medicationId);
+          if (medication && medication.pillCount > 0) {
+            // Decrease pill count
+            const success = await medicationManager.decreasePillCount(medicationId);
+            
+            if (success) {
+              // Record in history
+              await historyService.recordMedicationTaken(
+                medicationId,
+                medicationName || medication.name,
+                alarmId,
+                alarmTime
+              );
+              
+              console.log(`✅ Medication taken from alarm: ${medicationName || medication.name}`);
+            } else {
+              console.warn(`⚠️ Cannot decrease pill count for ${medicationName || medication.name}: already at 0`);
+            }
+          }
+        } catch (medicationError) {
+          console.error('Error recording medication from alarm:', medicationError);
+          // Continue even if medication recording fails
+        }
+      }
+
       // Dismiss any related notifications
       if (alarmId) {
-        // Cancel the specific notification if possible
-        const allNotifications = await Notifications.getAllScheduledNotificationsAsync();
-        const relatedNotifications = allNotifications.filter(
-          (n) => n.request.content.data?.alarmId === alarmId
-        );
-        
-        // Note: We can't cancel recurring notifications easily, but the sound is stopped
+        try {
+          // Cancel the specific notification if possible
+          const allNotifications = await Notifications.getAllScheduledNotificationsAsync();
+          const relatedNotifications = allNotifications.filter(
+            (n) => n && n.request && n.request.content && n.request.content.data && n.request.content.data.alarmId === alarmId
+          );
+          
+          // Note: We can't cancel recurring notifications easily, but the sound is stopped
+          // The notification system will handle the sound automatically
+        } catch (notificationError) {
+          console.warn('Error handling notifications:', notificationError);
+          // Continue even if notification handling fails
+        }
       }
 
       // Navigate back
       navigation.goBack();
     } catch (error) {
       console.error('Error turning off alarm:', error);
+      // Always navigate back even if there's an error
       navigation.goBack();
     }
   };
@@ -126,22 +180,24 @@ const AlarmScreen = ({ route, navigation }) => {
           <Text style={styles.alarmIconText}>!</Text>
         </View>
         
-        <Text style={styles.title}>Time to take your medication!</Text>
+        <Text style={styles.title}>Take Your Medication</Text>
         
         {medicationName && (
           <Text style={styles.medicationName}>{medicationName}</Text>
         )}
         
         {alarmTime && (
-          <Text style={styles.alarmTime}>{formatTime(alarmTime)}</Text>
+          <Text style={styles.alarmTime}>Scheduled for {formatTime(alarmTime)}</Text>
         )}
+
+        <Text style={styles.instruction}>Please take your medication now</Text>
 
         <TouchableOpacity 
           style={styles.turnOffButton} 
           onPress={handleTurnOff}
           activeOpacity={0.8}
         >
-          <Text style={styles.turnOffButtonText}>Turn Off Alarm</Text>
+          <Text style={styles.turnOffButtonText}>I took the medication</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -200,7 +256,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#6c757d',
     textAlign: 'center',
+    marginBottom: 10,
+  },
+  instruction: {
+    fontSize: 16,
+    color: '#495057',
+    textAlign: 'center',
     marginBottom: 30,
+    fontStyle: 'italic',
   },
   turnOffButton: {
     backgroundColor: '#dc3545',

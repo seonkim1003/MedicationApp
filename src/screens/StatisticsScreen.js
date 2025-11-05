@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
+import AlarmService from '../services/AlarmService';
+import * as Notifications from 'expo-notifications';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
 
@@ -91,6 +93,64 @@ export default function StatisticsScreen() {
       console.error('Error getting weekly data:', error);
       return [];
     }
+  };
+
+  const handleResetData = async () => {
+    Alert.alert(
+      'Reset All Data',
+      'Are you sure you want to delete all data? This will permanently delete:\n\n• All medications\n• All alarms\n• All medication history\n• All settings\n\nThis action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset All Data',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const medicationManager = MedicationManager.getInstance();
+              const historyService = HistoryService.getInstance();
+              const alarmService = AlarmService.getInstance();
+
+              // Clear all scheduled notifications
+              await Notifications.cancelAllScheduledNotificationsAsync();
+
+              // Clear all medication data (medications, alarms, settings)
+              await medicationManager.clearAllData();
+
+              // Clear history
+              await historyService.clearHistory();
+
+              // Reschedule alarms (will be empty but ensures clean state)
+              try {
+                await alarmService.rescheduleAllMedications();
+              } catch (e) {
+                console.warn('Error rescheduling after reset:', e);
+              }
+
+              Toast.show({
+                type: 'success',
+                text1: 'Data Reset',
+                text2: 'All data has been cleared',
+              });
+
+              // Reload statistics to show empty state
+              setTimeout(() => {
+                loadStatistics();
+              }, 500);
+            } catch (error) {
+              console.error('Error resetting data:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Failed to reset data',
+              });
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -245,6 +305,19 @@ export default function StatisticsScreen() {
             <Text style={styles.buttonText}>Refresh Statistics</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Reset Data Button */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={[styles.button, styles.resetButton]} 
+            onPress={() => handleResetData()}
+          >
+            <Text style={styles.buttonText}>Reset All Data</Text>
+          </TouchableOpacity>
+          <Text style={styles.resetWarning}>
+            This will delete all medications, alarms, history, and settings. This cannot be undone.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -386,7 +459,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  resetButton: {
+    backgroundColor: '#dc3545',
+  },
+  resetWarning: {
+    fontSize: 12,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
 });
+
+
 
 
 

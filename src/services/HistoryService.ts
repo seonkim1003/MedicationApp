@@ -106,6 +106,7 @@ class HistoryService {
   }
 
   // Calculate adherence statistics
+  // Adherence = (Number of pills taken / Number of alarms) * 100
   async calculateAdherenceStats(
     medication: Medication,
     alarms: MedicationAlarm[]
@@ -114,93 +115,100 @@ class HistoryService {
       const medicationHistory = await this.getMedicationHistory(medication.id);
       const historyEntries = medicationHistory;
 
-      if (historyEntries.length === 0) {
-        return {
-          medicationId: medication.id,
-          medicationName: medication.name,
-          totalAlarms: 0,
-          totalTaken: 0,
-          adherenceRate: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          missedDays: 0,
-        };
-      }
+      // Count enabled alarms for this medication
+      const enabledAlarms = alarms.filter(alarm => alarm.isEnabled);
+      const totalAlarms = enabledAlarms.length;
 
-      // Calculate date range (last 30 days)
-      const endDate = moment();
-      const startDate = moment().subtract(30, 'days');
-
-      // Get all expected medication days from alarms
-      const expectedDays = new Set<string>();
-      alarms.forEach(alarm => {
-        if (!alarm.isEnabled) return;
-        
-        const alarmTime = moment(alarm.time, 'HH:mm');
-        const dayOfWeek = alarmTime.day(); // 0 = Sunday, 1 = Monday, etc.
-        
-        // Convert our day system (1=Monday) to JS day system
-        const ourDays = alarm.daysOfWeek.map(d => d === 7 ? 0 : d);
-        
-        let current = startDate.clone();
-        while (current.isBefore(endDate)) {
-          if (ourDays.includes(current.day())) {
-            const dateStr = current.format('YYYY-MM-DD');
-            expectedDays.add(dateStr);
-          }
-          current.add(1, 'day');
+      // Count unique alarms that had pills taken (friendly for multiple pills per alarm)
+      // If alarmId is available, use it to count unique alarms
+      // Otherwise, group by date+time window to avoid double-counting
+      const alarmsWithPillsTaken = new Set<string>();
+      
+      historyEntries.forEach(entry => {
+        if (entry.alarmId) {
+          // If alarmId is available, use it directly
+          alarmsWithPillsTaken.add(entry.alarmId);
+        } else {
+          // If no alarmId, group by date+time window (30-minute window) to approximate alarm
+          const takenDate = moment(entry.takenAt).format('YYYY-MM-DD');
+          const takenTime = moment(entry.takenAt).format('HH:mm');
+          // Round to nearest 30-minute window
+          const hour = parseInt(takenTime.split(':')[0], 10);
+          const minute = parseInt(takenTime.split(':')[1], 10);
+          const roundedMinute = Math.floor(minute / 30) * 30;
+          const timeWindow = `${hour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}`;
+          alarmsWithPillsTaken.add(`${takenDate}_${timeWindow}`);
         }
       });
 
-      // Get actual taken days
-      const takenDays = new Set<string>();
-      historyEntries.forEach(entry => {
-        const takenDate = moment(entry.takenAt).format('YYYY-MM-DD');
-        takenDays.add(takenDate);
-      });
+      // Count unique alarms taken (not total pills)
+      const totalTaken = alarmsWithPillsTaken.size;
+      
+      // Also count total pills for display purposes
+      const totalPillsTaken = historyEntries.length;
 
-      // Calculate adherence
-      const totalExpected = expectedDays.size;
-      const totalTaken = takenDays.size;
-      const missedDays = totalExpected - totalTaken;
-      const adherenceRate = totalExpected > 0 
-        ? Math.round((totalTaken / totalExpected) * 100) 
+      // Calculate adherence: unique alarms with pills taken / number of alarms
+      // This way, taking multiple pills at one alarm time doesn't inflate adherence
+      const adherenceRate = totalAlarms > 0 
+        ? Math.round((totalTaken / totalAlarms) * 100) 
         : 0;
 
-      // Calculate current streak
+      // Calculate missed alarms (alarms - unique alarms taken, but not negative)
+      const missedDays = Math.max(0, totalAlarms - totalTaken);
+
+      // Calculate current streak (consecutive days with pills taken)
       let currentStreak = 0;
-      const sortedTaken = Array.from(takenDays).sort().reverse();
-      let checkDate = moment();
-      
-      while (true) {
-        const dateStr = checkDate.format('YYYY-MM-DD');
-        if (sortedTaken.includes(dateStr)) {
-          currentStreak++;
-          checkDate.subtract(1, 'day');
-        } else {
-          break;
+      if (historyEntries.length > 0) {
+        const sortedHistory = [...historyEntries].sort((a, b) => 
+          moment(b.takenAt).diff(moment(a.takenAt))
+        );
+        
+        const takenDays = new Set<string>();
+        sortedHistory.forEach(entry => {
+          const takenDate = moment(entry.takenAt).format('YYYY-MM-DD');
+          takenDays.add(takenDate);
+        });
+        
+        const sortedTaken = Array.from(takenDays).sort().reverse();
+        let checkDate = moment();
+        
+        while (true) {
+          const dateStr = checkDate.format('YYYY-MM-DD');
+          if (sortedTaken.includes(dateStr)) {
+            currentStreak++;
+            checkDate.subtract(1, 'day');
+          } else {
+            break;
+          }
         }
       }
 
-      // Calculate longest streak (simplified)
+      // Calculate longest streak (consecutive days)
       let longestStreak = 0;
-      let tempStreak = 0;
-      const sortedHistory = [...historyEntries].sort((a, b) => 
-        moment(a.takenAt).diff(moment(b.takenAt))
-      );
-
-      for (let i = 0; i < sortedHistory.length; i++) {
-        if (i === 0 || 
-            moment(sortedHistory[i].takenAt).diff(
-              moment(sortedHistory[i-1].takenAt), 'days'
-            ) === 1) {
-          tempStreak++;
-        } else {
-          longestStreak = Math.max(longestStreak, tempStreak);
-          tempStreak = 1;
+      if (historyEntries.length > 0) {
+        const takenDays = new Set<string>();
+        historyEntries.forEach(entry => {
+          const takenDate = moment(entry.takenAt).format('YYYY-MM-DD');
+          takenDays.add(takenDate);
+        });
+        
+        const sortedDates = Array.from(takenDays).sort();
+        let tempStreak = 1;
+        
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = moment(sortedDates[i - 1]);
+          const currDate = moment(sortedDates[i]);
+          const diffDays = currDate.diff(prevDate, 'days');
+          
+          if (diffDays === 1) {
+            tempStreak++;
+          } else {
+            longestStreak = Math.max(longestStreak, tempStreak);
+            tempStreak = 1;
+          }
         }
+        longestStreak = Math.max(longestStreak, tempStreak);
       }
-      longestStreak = Math.max(longestStreak, tempStreak);
 
       const lastTaken = historyEntries.length > 0
         ? historyEntries[historyEntries.length - 1].takenAt
@@ -209,13 +217,13 @@ class HistoryService {
       return {
         medicationId: medication.id,
         medicationName: medication.name,
-        totalAlarms: totalExpected,
+        totalAlarms: totalAlarms,
         totalTaken,
         adherenceRate,
         currentStreak,
         longestStreak,
         lastTaken,
-        missedDays: Math.max(0, missedDays),
+        missedDays,
       };
     } catch (error) {
       console.error('❌ Error calculating adherence:', error);
@@ -250,9 +258,22 @@ class HistoryService {
       return [];
     }
   }
+
+  // Clear all medication history
+  async clearHistory(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.HISTORY);
+      console.log('✅ Medication history cleared');
+    } catch (error) {
+      console.error('❌ Error clearing history:', error);
+      throw error;
+    }
+  }
 }
 
 export default HistoryService;
+
+
 
 
 
