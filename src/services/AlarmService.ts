@@ -1,13 +1,16 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import MedicationManager from './MedicationManager';
 import { Medication, MedicationAlarm } from '../types';
 
-// Configure notification behavior
+// Configure notification behavior as alarms with sound
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -16,6 +19,7 @@ class AlarmService {
   private isInitialized: boolean = false;
   private isMonitoring: boolean = false;
   private medicationManager: MedicationManager;
+  private navigationRef: any = null;
 
   private constructor() {
     this.medicationManager = MedicationManager.getInstance();
@@ -40,15 +44,27 @@ class AlarmService {
       }
 
       if (finalStatus !== 'granted') {
-        console.warn('⚠️ Notification permissions not granted');
+        console.warn('Notification permissions not granted');
         return;
+      }
+
+      // Configure notification channel for Android (required for alarms with sound)
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('alarms', {
+          name: 'Medication Alarms',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
       }
 
       this.isInitialized = true;
       this.startMonitoring();
-      console.log('✅ Alarm Service initialized successfully');
+      console.log('Alarm Service initialized successfully');
     } catch (error) {
-      console.error('❌ Error initializing alarm service:', error);
+      console.error('Error initializing alarm service:', error);
       throw error;
     }
   }
@@ -59,54 +75,14 @@ class AlarmService {
     }
 
     this.isMonitoring = true;
-    this.checkAlarms();
-    
-    // Check alarms every minute
-    setInterval(() => {
-      this.checkAlarms();
-    }, 60000);
-
-    console.log('✅ Alarm monitoring started');
-  }
-
-  private async checkAlarms(): Promise<void> {
-    try {
-      // This method is kept for backward compatibility
-      // The actual alarm checking is now handled by expo-notifications
-      // which fires notifications daily, and we filter them based on dayOfWeek in the handler
-      
-      // Get all scheduled notifications to verify they're set up correctly
-      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-      console.log(`📋 Currently scheduled: ${scheduledNotifications.length} notifications`);
-    } catch (error) {
-      console.error('❌ Error checking alarms:', error);
-    }
-  }
-
-  private async triggerAlarm(medication: Medication, alarm: MedicationAlarm): Promise<void> {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `💊 Time to take ${medication.name}`,
-          body: `Don't forget your medication!`,
-          sound: true,
-          data: {
-            medicationId: medication.id,
-            alarmId: alarm.id,
-          },
-        },
-        trigger: null, // Immediate notification
-      });
-
-      console.log(`🔔 Alarm triggered for ${medication.name} at ${alarm.time}`);
-    } catch (error) {
-      console.error('❌ Error triggering alarm:', error);
-    }
+    // Alarms are now scheduled as recurring weekly notifications
+    // No need for constant checking - notifications fire automatically at scheduled times
+    console.log('Alarm monitoring started');
   }
 
   async rescheduleAllMedications(): Promise<void> {
     try {
-      console.log('🔄 Rescheduling all medication alarms...');
+      console.log('Rescheduling all medication alarms...');
       
       // Cancel all existing notifications
       await Notifications.cancelAllScheduledNotificationsAsync();
@@ -116,7 +92,7 @@ class AlarmService {
       
       // Ensure medications array exists and is valid
       if (!medications || !Array.isArray(medications)) {
-        console.log('⚠️ No medications to reschedule');
+        console.log('No medications to reschedule');
         return;
       }
 
@@ -125,7 +101,7 @@ class AlarmService {
       
       // Ensure alarms array exists and is valid
       if (!allAlarms || !Array.isArray(allAlarms)) {
-        console.log('⚠️ No alarms to reschedule');
+        console.log('No alarms to reschedule');
         return;
       }
 
@@ -154,9 +130,9 @@ class AlarmService {
         }
       }
 
-      console.log('✅ All medication alarms rescheduled');
+      console.log('All medication alarms rescheduled');
     } catch (error) {
-      console.error('❌ Error rescheduling all medication alarms:', error);
+      console.error('Error rescheduling all medication alarms:', error);
       throw error;
     }
   }
@@ -171,16 +147,14 @@ class AlarmService {
       
       // Validate hours and minutes
       if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        console.error(`❌ Invalid alarm time format: ${alarm.time}`);
+        console.error(`Invalid alarm time format: ${alarm.time}`);
         return;
       }
 
-      const now = new Date();
-      const currentDay = now.getDay() === 0 ? 7 : now.getDay(); // Convert Sunday from 0 to 7
-
       let totalScheduled = 0;
 
-      // Schedule notifications for the next 12 weeks (3 months) for each specified day
+      // Schedule recurring weekly alarms for each specified day
+      // This creates a single recurring alarm per day instead of scheduling multiple weeks ahead
       for (const dayOfWeek of alarm.daysOfWeek) {
         if (dayOfWeek < 1 || dayOfWeek > 7) {
           continue;
@@ -189,54 +163,37 @@ class AlarmService {
         // Convert our day system (1=Monday, 7=Sunday) to JS Date system (0=Sunday, 1=Monday)
         const jsDayOfWeek = dayOfWeek === 7 ? 0 : dayOfWeek;
 
-        // Calculate days until next occurrence of this day
-        let daysUntilTarget = (jsDayOfWeek - currentDay + 7) % 7;
-        
-        // If it's the same day but time has passed, schedule for next week
-        if (daysUntilTarget === 0) {
-          const currentTime = now.getHours() * 60 + now.getMinutes();
-          const alarmTime = hours * 60 + minutes;
-          if (currentTime >= alarmTime) {
-            daysUntilTarget = 7;
-          }
-        }
-
-        // Schedule notifications for the next 12 weeks
-        for (let week = 0; week < 12; week++) {
-          const targetDate = new Date(now);
-          targetDate.setHours(hours, minutes, 0, 0);
-          targetDate.setDate(targetDate.getDate() + daysUntilTarget + (week * 7));
-
-          // Skip if the date is in the past (with a small buffer to avoid scheduling in the past)
-          const timeDiff = targetDate.getTime() - now.getTime();
-          if (timeDiff <= 1000) { // Less than 1 second in the past
-            continue;
-          }
-
-          // Schedule notification at the exact alarm time
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `💊 Time to take ${medication.name}`,
-              body: `Don't forget your medication!`,
-              sound: true,
-              data: {
-                medicationId: medication.id,
-                alarmId: alarm.id,
-                alarmTime: alarm.time,
-              },
+        // Schedule as a recurring weekly alarm with sound
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Time to take ${medication.name}`,
+            body: `Don't forget your medication!`,
+            sound: true, // Play default alarm sound
+            vibrate: [0, 250, 250, 250],
+            data: {
+              medicationId: medication.id,
+              alarmId: alarm.id,
+              alarmTime: alarm.time,
+              medicationName: medication.name,
             },
-            trigger: {
-              date: targetDate,
-            },
-          });
+            categoryIdentifier: 'alarm',
+          },
+          trigger: {
+            type: 'calendar',
+            weekday: jsDayOfWeek + 1, // expo-notifications uses 1-7 where 1 is Sunday
+            hour: hours,
+            minute: minutes,
+            repeats: true, // Recurring weekly alarm
+          } as Notifications.CalendarTriggerInput,
+          identifier: `alarm_${alarm.id}_${dayOfWeek}`, // Unique identifier for this alarm/day combo
+        });
 
-          totalScheduled++;
-        }
+        totalScheduled++;
       }
 
-      console.log(`⏰ Scheduled ${totalScheduled} notifications for ${medication.name} at ${alarm.time} on ${alarm.daysOfWeek.length} day(s)`);
+      console.log(`Scheduled ${totalScheduled} recurring alarms for ${medication.name} at ${alarm.time}`);
     } catch (error) {
-      console.error('❌ Error scheduling alarm notification:', error);
+      console.error('Error scheduling alarm notification:', error);
     }
   }
 
@@ -271,30 +228,46 @@ class AlarmService {
       // Reschedule all alarms
       await this.rescheduleAllMedications();
 
-      console.log(`✅ Alarm created for ${medication.name}`);
+      console.log(`Alarm created for ${medication.name}`);
     } catch (error) {
-      console.error('❌ Error creating alarm:', error);
+      console.error('Error creating alarm:', error);
       throw error;
     }
   }
 
+  setNavigationRef(ref: any): void {
+    this.navigationRef = ref;
+  }
+
   setupNotificationHandlers(): void {
     // Handle notification received while app is in foreground
-    Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📬 Notification received:', notification);
+    Notifications.addNotificationReceivedListener(async (notification) => {
+      console.log('Alarm notification received:', notification);
       const data = notification.request.content.data;
-      if (data && data.medicationId) {
-        console.log(`💊 Medication reminder: ${data.medicationId}`);
+      if (data && data.medicationId && this.navigationRef) {
+        console.log(`Medication alarm: ${data.medicationId}`);
+        // Navigate to alarm screen immediately when notification is received
+        this.navigationRef.navigate('Alarm', {
+          medicationId: data.medicationId,
+          alarmId: data.alarmId,
+          medicationName: data.medicationName || 'Medication',
+          alarmTime: data.alarmTime,
+        });
       }
     });
 
-    // Handle notification tapped
-    Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('👆 Notification tapped:', response);
+    // Handle notification tapped (when app is in background)
+    Notifications.addNotificationResponseReceivedListener(async (response) => {
+      console.log('Alarm notification tapped:', response);
       const data = response.notification.request.content.data;
-      if (data && data.medicationId) {
-        // Handle notification tap (e.g., navigate to medication detail)
-        console.log(`👆 Tapped medication: ${data.medicationId}`);
+      if (data && data.medicationId && this.navigationRef) {
+        // Navigate to alarm screen when user taps notification
+        this.navigationRef.navigate('Alarm', {
+          medicationId: data.medicationId,
+          alarmId: data.alarmId,
+          medicationName: data.medicationName || 'Medication',
+          alarmTime: data.alarmTime,
+        });
       }
     });
   }
@@ -307,9 +280,9 @@ class AlarmService {
     try {
       await this.medicationManager.deleteAlarm(alarmId);
       await this.rescheduleAllMedications();
-      console.log(`✅ Alarm ${alarmId} cancelled`);
+      console.log(`Alarm ${alarmId} cancelled`);
     } catch (error) {
-      console.error('❌ Error cancelling alarm:', error);
+      console.error('Error cancelling alarm:', error);
       throw error;
     }
   }

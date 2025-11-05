@@ -16,20 +16,22 @@ export default function MedicationsScreen({ lights, alarmService }) {
   // Add Medication Modal state
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [medName, setMedName] = useState('');
-  const [pillCount, setPillCount] = useState('30');
-  const [selectedColor, setSelectedColor] = useState('#FF6B6B');
+  const [pillCount, setPillCount] = useState('');
+
+  // Connect Lights Modal state
+  const [isConnectLightsVisible, setIsConnectLightsVisible] = useState(false);
+  const [selectedMedicationForLights, setSelectedMedicationForLights] = useState(null);
   const [selectedLightIds, setSelectedLightIds] = useState([]);
+  const [lightColor, setLightColor] = useState('#FF6B6B');
 
   // Add Alarm Modal state
   const [isAlarmVisible, setIsAlarmVisible] = useState(false);
   const [selectedMedication, setSelectedMedication] = useState(null);
   const [alarmTime, setAlarmTime] = useState('08:00');
   const [alarmDate, setAlarmDate] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
+
   const [is24Hour, setIs24Hour] = useState(false); // 12-hour format by default
   const [alarmDays, setAlarmDays] = useState([1, 2, 3, 4, 5]);
-  const [alarmLightIds, setAlarmLightIds] = useState([]);
-  const [alarmColor, setAlarmColor] = useState('#FF6B6B');
 
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -54,10 +56,34 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
   const openAddMedication = () => {
     setMedName('');
-    setPillCount('30');
-    setSelectedColor('#FF6B6B');
-    setSelectedLightIds([]);
+    setPillCount('');
     setIsAddVisible(true);
+  };
+
+  const openConnectLights = (medication) => {
+    setSelectedMedicationForLights(medication);
+    // Load existing light connections for this medication
+    const existingLightIds = [];
+    let existingColor = '#FF6B6B';
+    if (medication.alarms && medication.alarms.length > 0) {
+      // Get the first alarm's light color if available
+      const firstAlarmWithColor = medication.alarms.find(a => a.lightColor);
+      if (firstAlarmWithColor) {
+        existingColor = firstAlarmWithColor.lightColor;
+      }
+      medication.alarms.forEach(alarm => {
+        if (alarm.lightIds && alarm.lightIds.length > 0) {
+          alarm.lightIds.forEach(lightId => {
+            if (!existingLightIds.includes(lightId)) {
+              existingLightIds.push(lightId);
+            }
+          });
+        }
+      });
+    }
+    setSelectedLightIds(existingLightIds);
+    setLightColor(existingColor);
+    setIsConnectLightsVisible(true);
   };
 
   const openAddAlarm = (medication) => {
@@ -69,20 +95,10 @@ export default function MedicationsScreen({ lights, alarmService }) {
     setAlarmTime('08:00 AM');
     setIs24Hour(false); // Use 12-hour format by default
     setAlarmDays([1, 2, 3, 4, 5]);
-    setAlarmLightIds([]);
-    setAlarmColor('#FF6B6B');
-    setShowTimePicker(Platform.OS === 'ios');
     setIsAlarmVisible(true);
   };
 
   const onTimeChange = (event, selectedDate) => {
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-      if (event.type === 'dismissed') {
-        return; // User cancelled
-      }
-    }
-
     if (selectedDate) {
       setAlarmDate(selectedDate);
       formatTimeDisplay(selectedDate);
@@ -141,9 +157,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
     formatTimeDisplay(alarmDate);
   };
 
-  const showTimePickerHandler = () => {
-    setShowTimePicker(true);
-  };
+
 
   const saveMedication = async () => {
     try {
@@ -211,8 +225,8 @@ export default function MedicationsScreen({ lights, alarmService }) {
         time: finalTime,
         daysOfWeek: alarmDays,
         isEnabled: true,
-        lightIds: alarmLightIds,
-        lightColor: alarmColor,
+        lightIds: [], // Lights are now connected separately
+        lightColor: '#FF6B6B', // Default color, can be changed in Connect Lights
       };
 
       await alarmServiceInstance.createAlarm(selectedMedication.id, newAlarm);
@@ -408,6 +422,12 @@ export default function MedicationsScreen({ lights, alarmService }) {
                       <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
+                      style={styles.connectLightsButton}
+                      onPress={() => openConnectLights(medication)}
+                    >
+                      <Text style={styles.connectLightsButtonText}>Light</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
                       style={styles.deleteButton}
                       onPress={() => deleteMedication(medication.id)}
                     >
@@ -430,8 +450,10 @@ export default function MedicationsScreen({ lights, alarmService }) {
                       <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
                     </View>
                     <Text style={styles.alarmDetails}>
-                      Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')} | 
-                      Lights: {alarm.lightIds.length}
+                      Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
+                      {alarm.lightIds && alarm.lightIds.length > 0 && (
+                        <Text> | Lights: {alarm.lightIds.length}</Text>
+                      )}
                     </Text>
                   </View>
                 ))}
@@ -473,44 +495,22 @@ export default function MedicationsScreen({ lights, alarmService }) {
               >
                 <Text style={styles.modalTitle}>Add Medication</Text>
 
+                <Text style={styles.label}>Medication Name</Text>
                 <TextInput
-                  placeholder="Medication name"
+                  placeholder="Enter medication name (e.g., Aspirin, Vitamin D)"
                   value={medName}
                   onChangeText={setMedName}
                   style={styles.input}
                 />
 
+                <Text style={styles.label}>Amount of Pills</Text>
                 <TextInput
-                  placeholder="Pill count"
+                  placeholder="Enter number of pills you have"
                   keyboardType="number-pad"
                   value={pillCount}
                   onChangeText={setPillCount}
                   style={styles.input}
                 />
-
-                <Text style={styles.label}>Color</Text>
-                <View style={styles.colorRow}>
-                  {COLOR_CHOICES.map((c) => (
-                    <TouchableOpacity key={c} style={[styles.colorDot, { backgroundColor: c, borderWidth: selectedColor === c ? 2 : 0 }]} onPress={() => setSelectedColor(c)} />
-                  ))}
-                </View>
-
-                <Text style={styles.label}>Select Lights</Text>
-                <View style={styles.lightsRow}>
-                  {lights.length === 0 ? (
-                    <Text style={styles.emptyText}>No lights available</Text>
-                  ) : (
-                    lights.map((l) => (
-                      <TouchableOpacity
-                        key={l.id}
-                        style={[styles.lightChip, selectedLightIds.includes(l.id) ? styles.lightChipSelected : null]}
-                        onPress={() => toggleLightSelection(l.id)}
-                      >
-                        <Text style={styles.lightChipText}>{l.name}</Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </View>
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAddVisible(false)}>
@@ -546,87 +546,71 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
                 <Text style={styles.label}>Time</Text>
                 
-                {/* Display current selected time */}
-                <View style={styles.timeDisplayContainer}>
-                  <Text style={styles.selectedTimeText}>Selected: {alarmTime}</Text>
-                  
-                  <View style={styles.timeControlButtons}>
-                    {/* AM/PM Selection (only for 12-hour format) */}
-                    {!is24Hour && (
-                      <>
-                        <TouchableOpacity
-                          style={[
-                            styles.ampmButton,
-                            alarmDate.getHours() < 12 && styles.ampmButtonActive
-                          ]}
-                          onPress={setAM}
-                        >
-                          <Text style={[
-                            styles.ampmButtonText,
-                            alarmDate.getHours() < 12 && styles.ampmButtonTextActive
-                          ]}>
-                            AM
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.ampmButton,
-                            alarmDate.getHours() >= 12 && styles.ampmButtonActive
-                          ]}
-                          onPress={setPM}
-                        >
-                          <Text style={[
-                            styles.ampmButtonText,
-                            alarmDate.getHours() >= 12 && styles.ampmButtonTextActive
-                          ]}>
-                            PM
-                          </Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    
-                    {/* 24-hour format toggle */}
-                    <TouchableOpacity
-                      style={styles.formatToggleButton}
-                      onPress={toggle24HourFormat}
-                    >
-                      <Text style={styles.formatToggleButtonText}>
-                        {is24Hour ? '12-Hour' : '24-Hour'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    {Platform.OS === 'android' && (
-                      <TouchableOpacity
-                        style={styles.timePickerButton}
-                        onPress={showTimePickerHandler}
-                      >
-                        <Text style={styles.timePickerButtonText}>Change Time</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                {/* Time Picker with Scrollwheel */}
+                <View style={styles.timePickerContainer}>
+                  <DateTimePicker
+                    value={alarmDate}
+                    mode="time"
+                    is24Hour={is24Hour}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'spinner'}
+                    onChange={onTimeChange}
+                    style={styles.timePickerWheel}
+                    textColor="#212529"
+                  />
                 </View>
 
-                {/* Native Time Picker */}
-                {showTimePicker && (
-                  <View style={styles.timePickerWrapper}>
-                    <DateTimePicker
-                      value={alarmDate}
-                      mode="time"
-                      is24Hour={is24Hour}
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={onTimeChange}
-                      style={Platform.OS === 'android' ? {} : styles.timePicker}
-                    />
-                    {Platform.OS === 'ios' && (
+                {/* Time Format Controls */}
+                <View style={styles.timeControlButtons}>
+                  {/* AM/PM Selection (only for 12-hour format) */}
+                  {!is24Hour && (
+                    <>
                       <TouchableOpacity
-                        style={styles.timePickerDoneButton}
-                        onPress={() => setShowTimePicker(false)}
+                        style={[
+                          styles.ampmButton,
+                          alarmDate.getHours() < 12 && styles.ampmButtonActive
+                        ]}
+                        onPress={setAM}
                       >
-                        <Text style={styles.timePickerDoneButtonText}>Done</Text>
+                        <Text style={[
+                          styles.ampmButtonText,
+                          alarmDate.getHours() < 12 && styles.ampmButtonTextActive
+                        ]}>
+                          AM
+                        </Text>
                       </TouchableOpacity>
-                    )}
-                  </View>
-                )}
+                      <TouchableOpacity
+                        style={[
+                          styles.ampmButton,
+                          alarmDate.getHours() >= 12 && styles.ampmButtonActive
+                        ]}
+                        onPress={setPM}
+                      >
+                        <Text style={[
+                          styles.ampmButtonText,
+                          alarmDate.getHours() >= 12 && styles.ampmButtonTextActive
+                        ]}>
+                          PM
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  
+                  {/* 24-hour format toggle */}
+                  <TouchableOpacity
+                    style={styles.formatToggleButton}
+                    onPress={toggle24HourFormat}
+                  >
+                    <Text style={styles.formatToggleButtonText}>
+                      {is24Hour ? '12-Hour' : '24-Hour'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Display selected time */}
+                <View style={styles.selectedTimeContainer}>
+                  <Text style={styles.selectedTimeLabel}>Selected Time:</Text>
+                  <Text style={styles.selectedTimeText}>{alarmTime}</Text>
+                </View>
 
                 <Text style={styles.label}>Days of Week</Text>
                 <View style={styles.daysRow}>
@@ -639,36 +623,6 @@ export default function MedicationsScreen({ lights, alarmService }) {
                       <Text style={styles.dayChipText}>{day.short}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
-
-                <Text style={styles.label}>Alarm Color</Text>
-                <View style={styles.colorRow}>
-                  {COLOR_CHOICES.map((c) => (
-                    <TouchableOpacity key={c} style={[styles.colorDot, { backgroundColor: c, borderWidth: alarmColor === c ? 2 : 0 }]} onPress={() => setAlarmColor(c)} />
-                  ))}
-                </View>
-
-                <Text style={styles.label}>Select Lights</Text>
-                <View style={styles.lightsRow}>
-                  {lights.length === 0 ? (
-                    <Text style={styles.emptyText}>No lights available</Text>
-                  ) : (
-                    lights.map((l) => (
-                      <TouchableOpacity
-                        key={l.id}
-                        style={[styles.lightChip, alarmLightIds.includes(l.id) ? styles.lightChipSelected : null]}
-                        onPress={() => {
-                          if (alarmLightIds.includes(l.id)) {
-                            setAlarmLightIds(alarmLightIds.filter(id => id !== l.id));
-                          } else {
-                            setAlarmLightIds([...alarmLightIds, l.id]);
-                          }
-                        }}
-                      >
-                        <Text style={styles.lightChipText}>{l.name}</Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
                 </View>
 
                 <View style={styles.modalActions}>
@@ -684,6 +638,139 @@ export default function MedicationsScreen({ lights, alarmService }) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Connect Lights Modal */}
+      <Modal
+        visible={isConnectLightsVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsConnectLightsVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsConnectLightsVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Connect Lights to {selectedMedicationForLights?.name}</Text>
+                <Text style={styles.modalSubtitle}>Select which lights should flash when alarm rings</Text>
+
+                <Text style={styles.label}>Light Color</Text>
+                <View style={styles.colorRow}>
+                  {COLOR_CHOICES.map((c) => (
+                    <TouchableOpacity key={c} style={[styles.colorDot, { backgroundColor: c, borderWidth: lightColor === c ? 2 : 0 }]} onPress={() => setLightColor(c)} />
+                  ))}
+                </View>
+
+                <Text style={styles.label}>Available Lights</Text>
+                <View style={styles.lightsRow}>
+                  {lights.length === 0 ? (
+                    <Text style={styles.emptyText}>No lights available. Go to Lights tab to add lights.</Text>
+                  ) : (
+                    lights.map((l) => (
+                      <TouchableOpacity
+                        key={l.id}
+                        style={[styles.lightChip, selectedLightIds.includes(l.id) ? styles.lightChipSelected : null]}
+                        onPress={() => toggleLightSelection(l.id)}
+                      >
+                        <Text style={[
+                          styles.lightChipText,
+                          selectedLightIds.includes(l.id) && styles.lightChipTextSelected
+                        ]}>
+                          {l.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsConnectLightsVisible(false)}>
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.button} onPress={async () => {
+                    try {
+                      if (!selectedMedicationForLights) return;
+                      
+                      const medicationManager = MedicationManager.getInstance();
+                      const allAlarms = await medicationManager.loadAlarms();
+                      const medicationAlarms = allAlarms.filter(a => a.medicationId === selectedMedicationForLights.id);
+                      
+                      // Update all alarms for this medication with the selected lights
+                      for (const alarm of medicationAlarms) {
+                        const updatedAlarm = {
+                          ...alarm,
+                          lightIds: selectedLightIds,
+                          lightColor: lightColor,
+                        };
+                        await medicationManager.updateAlarm(updatedAlarm);
+                      }
+                      
+                      // Reschedule alarms
+                      if (alarmService) {
+                        await alarmService.rescheduleAllMedications();
+                      }
+                      
+                      await loadMedications();
+                      setIsConnectLightsVisible(false);
+                      Toast.show({
+                        type: 'success',
+                        text1: 'Lights Connected',
+                        text2: `Connected ${selectedLightIds.length} light(s) to ${selectedMedicationForLights.name}`,
+                      });
+                    } catch (error) {
+                      console.error('Error connecting lights:', error);
+                      Toast.show({
+                        type: 'error',
+                        text1: 'Error',
+                        text2: 'Failed to connect lights',
+                      });
+                    }
+                  }}>
+                    <Text style={styles.buttonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => {
+          if (medications.length === 0) {
+            Toast.show({
+              type: 'info',
+              text1: 'No Medications',
+              text2: 'Please add a medication first',
+            });
+            return;
+          }
+          // Open modal to select medication and connect lights
+          Alert.alert(
+            'Connect Lights',
+            'Select a medication to connect lights:',
+            [
+              ...medications.map(med => ({
+                text: med.name,
+                onPress: () => openConnectLights(med),
+              })),
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+        }}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.fabText}>+ Add Lightbulb</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -698,6 +785,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 10,
   },
   loadingText: {
     fontSize: 18,
@@ -717,8 +805,8 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -830,10 +918,10 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#007bff',
     borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     alignItems: 'center',
-    minWidth: 120,
+    minWidth: 100,
     shadowColor: '#007bff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -842,7 +930,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -858,7 +946,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 400,
-    maxHeight: SCREEN_HEIGHT * 0.8,
+          maxHeight: SCREEN_HEIGHT * 0.85,
     justifyContent: 'flex-start',
     overflow: 'hidden',
     shadowColor: '#000',
@@ -868,7 +956,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   modalScrollContent: {
-    paddingBottom: 10,
+    paddingBottom: 5,
     flexGrow: 0,
   },
   modalTitle: {
@@ -884,17 +972,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#dee2e6',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 10,
+    fontSize: 14,
     color: '#212529',
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#495057',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 6,
+    marginBottom: 6,
     fontWeight: '600',
     letterSpacing: 0.2,
   },
@@ -902,7 +990,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   colorDot: {
     width: 36,
@@ -921,7 +1009,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   lightChip: {
     paddingHorizontal: 12,
@@ -945,9 +1033,9 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 16,
-    paddingTop: 16,
+    gap: 10,
+    marginTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
   },
@@ -968,6 +1056,22 @@ const styles = StyleSheet.create({
   },
   addAlarmButtonText: {
     color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  connectLightsButton: {
+    backgroundColor: '#ffc107',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    shadowColor: '#ffc107',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  connectLightsButtonText: {
+    color: '#212529',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1058,9 +1162,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 30,
   },
-  timeDisplayContainer: {
-    marginVertical: 8,
+  timePickerContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 10,
+    marginVertical: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  timePickerWheel: {
+    width: '100%',
+    height: 160,
   },
   timeControlButtons: {
     flexDirection: 'row',
@@ -1068,25 +1181,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 8,
+    marginBottom: 8,
+  },
+  selectedTimeContainer: {
+    backgroundColor: '#e7f3ff',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#b3d9ff',
+  },
+  selectedTimeLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginBottom: 4,
+    fontWeight: '500',
   },
   selectedTimeText: {
-    fontSize: 18,
-    color: '#3498db',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  timePickerButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  timePickerButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#007bff',
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   ampmButton: {
     backgroundColor: '#ecf0f1',
@@ -1123,30 +1240,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  timePickerWrapper: {
-    marginVertical: 8,
-    alignItems: 'center',
-  },
-  timePicker: {
-    width: '100%',
-    height: Platform.OS === 'ios' ? 150 : 200,
-  },
-  timePickerDoneButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  timePickerDoneButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+
   daysRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   dayChip: {
     paddingHorizontal: 10,
@@ -1162,6 +1261,38 @@ const styles = StyleSheet.create({
   dayChipText: {
     color: '#2c3e50',
     fontSize: 12,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#007bff',
+    borderRadius: 28,
+    width: 160,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  lightChipTextSelected: {
+    color: 'white',
   },
 });
 

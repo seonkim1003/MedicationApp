@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, Alert } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 
 // Import services
@@ -19,6 +20,8 @@ import LightsScreen from './src/screens/LightsScreen';
 import LightDetailScreen from './src/screens/LightDetailScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
+import AlarmScreen from './src/screens/AlarmScreen';
+import SwipeableTabWrapper from './src/components/SwipeableTabWrapper';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -29,9 +32,14 @@ function LightsStack() {
     <Stack.Navigator>
       <Stack.Screen 
         name="LightsList" 
-        component={LightsScreen}
         options={{ title: 'Smart Lights' }}
-      />
+      >
+        {props => (
+          <SwipeableTabWrapper>
+            <LightsScreen {...props} />
+          </SwipeableTabWrapper>
+        )}
+      </Stack.Screen>
       <Stack.Screen 
         name="LightDetail" 
         component={LightDetailScreen}
@@ -49,7 +57,11 @@ function MedicationsStack({ lights, alarmService }) {
         name="MedicationsList" 
         options={{ title: 'Medications' }}
       >
-        {props => <MedicationsScreen {...props} lights={lights} alarmService={alarmService} />}
+        {props => (
+          <SwipeableTabWrapper>
+            <MedicationsScreen {...props} lights={lights} alarmService={alarmService} />
+          </SwipeableTabWrapper>
+        )}
       </Stack.Screen>
     </Stack.Navigator>
   );
@@ -59,10 +71,18 @@ export default function App() {
   const [lights, setLights] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [alarmService, setAlarmService] = useState(null);
+  const navigationRef = useRef();
 
   useEffect(() => {
     initializeApp();
   }, []);
+
+  useEffect(() => {
+    if (alarmService && navigationRef.current) {
+      alarmService.setNavigationRef(navigationRef.current);
+      alarmService.setupNotificationHandlers();
+    }
+  }, [alarmService]);
 
   const initializeApp = async () => {
     try {
@@ -99,9 +119,6 @@ export default function App() {
         console.log(`Loaded ${loadedLights.length} smart lights`);
       }
 
-      // Setup notification handlers
-      alarmServiceInstance.setupNotificationHandlers();
-
       console.log('App initialized successfully');
     } catch (error) {
       console.error('Failed to initialize app:', error);
@@ -129,94 +146,129 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <PaperProvider>
-        <NavigationContainer>
-                      <Tab.Navigator
-            screenOptions={{
-              tabBarActiveTintColor: '#007bff',
-              tabBarInactiveTintColor: '#6c757d',
-              tabBarStyle: {
-                backgroundColor: 'white',
-                borderTopWidth: 1,
-                borderTopColor: '#e9ecef',
-                height: 60,
-                paddingBottom: 8,
-                paddingTop: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 8,
-              },
-              tabBarLabelStyle: {
-                fontSize: 12,
-                fontWeight: '600',
-                marginTop: 4,
-              },
-              headerStyle: {
-                backgroundColor: '#007bff',
-                elevation: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: '700',
-                fontSize: 20,
-                letterSpacing: -0.3,
-              },
-            }}
-          >
-            <Tab.Screen 
-              name="Home" 
-              component={HomeScreen}
-              options={{ 
-                tabBarLabel: 'Home',
-                tabBarIcon: () => <Text style={styles.tabIcon}>H</Text>
-              }}
-            />
-            <Tab.Screen 
-              name="Medications" 
-              options={{ 
-                tabBarLabel: 'Medications',
-                tabBarIcon: () => <Text style={styles.tabIcon}>M</Text>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PaperProvider>
+          <NavigationContainer ref={navigationRef}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Main">
+                {() => <MainTabs lights={lights} alarmService={alarmService} />}
+              </Stack.Screen>
+              <Stack.Screen 
+                name="Alarm" 
+                component={AlarmScreen}
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+          <StatusBar style="auto" />
+          <Toast />
+        </PaperProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function MainTabs({ lights, alarmService }) {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+                tabBarActiveTintColor: '#007bff',
+                tabBarInactiveTintColor: '#6c757d',
+                tabBarStyle: {
+                  backgroundColor: 'white',
+                  borderTopWidth: 1,
+                  borderTopColor: '#e9ecef',
+                  height: 60,
+                  paddingBottom: 8,
+                  paddingTop: 8,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: -2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 8,
+                },
+                tabBarLabelStyle: {
+                  fontSize: 12,
+                  fontWeight: '600',
+                  marginTop: 4,
+                },
+                headerStyle: {
+                  backgroundColor: '#007bff',
+                  elevation: 4,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: '700',
+                  fontSize: 20,
+                  letterSpacing: -0.3,
+                },
               }}
             >
-              {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
-            </Tab.Screen>
-            <Tab.Screen 
-              name="Calendar" 
-              component={CalendarScreen}
-              options={{ 
-                tabBarLabel: 'Calendar',
-                tabBarIcon: () => <Text style={styles.tabIcon}>C</Text>
-              }}
-            />
-            <Tab.Screen 
-              name="Statistics" 
-              component={StatisticsScreen}
-              options={{ 
-                tabBarLabel: 'Stats',
-                tabBarIcon: () => <Text style={styles.tabIcon}>S</Text>
-              }}
-            />
-            <Tab.Screen 
-              name="Lights" 
-              component={LightsStack}
-              options={{ 
-                tabBarLabel: 'Lights',
-                tabBarIcon: () => <Text style={styles.tabIcon}>L</Text>
-              }}
-            />
-          </Tab.Navigator>
-        </NavigationContainer>
-        <StatusBar style="auto" />
-        <Toast />
-      </PaperProvider>
-    </SafeAreaProvider>
+              <Tab.Screen 
+                name="Home" 
+                options={{ 
+                  tabBarLabel: 'Home',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>H</Text>
+                }}
+              >
+                {props => (
+                  <SwipeableTabWrapper>
+                    <HomeScreen {...props} />
+                  </SwipeableTabWrapper>
+                )}
+              </Tab.Screen>
+              <Tab.Screen 
+                name="Medications" 
+                options={{ 
+                  tabBarLabel: 'Medications',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>M</Text>
+                }}
+              >
+                {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
+              </Tab.Screen>
+              <Tab.Screen 
+                name="Calendar" 
+                options={{ 
+                  tabBarLabel: 'Calendar',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>C</Text>
+                }}
+              >
+                {props => (
+                  <SwipeableTabWrapper>
+                    <CalendarScreen {...props} />
+                  </SwipeableTabWrapper>
+                )}
+              </Tab.Screen>
+              <Tab.Screen 
+                name="Statistics" 
+                options={{ 
+                  tabBarLabel: 'Stats',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>S</Text>
+                }}
+              >
+                {props => (
+                  <SwipeableTabWrapper>
+                    <StatisticsScreen {...props} />
+                  </SwipeableTabWrapper>
+                )}
+              </Tab.Screen>
+              <Tab.Screen 
+                name="Lights" 
+                component={LightsStack}
+                options={{ 
+                  tabBarLabel: 'Lights',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>L</Text>
+                }}
+              />
+            </Tab.Navigator>
   );
 }
 

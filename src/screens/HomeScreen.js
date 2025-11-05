@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
+import CircularTimer from '../components/CircularTimer';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
 
@@ -15,6 +16,7 @@ export default function HomeScreen({ navigation }) {
   const [todayTaken, setTodayTaken] = useState(0);
   const [lowPillCount, setLowPillCount] = useState([]);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [nextAlarmTime, setNextAlarmTime] = useState(null);
 
   useEffect(() => {
     loadDashboard();
@@ -83,6 +85,10 @@ export default function HomeScreen({ navigation }) {
       
       setUpcomingAlarms(upcoming);
 
+      // Calculate next alarm time for circular timer
+      const nextAlarm = calculateNextAlarmTime(medications, allAlarms);
+      setNextAlarmTime(nextAlarm);
+
       // Get today's taken count
       const todayHistory = await historyService.getRecentHistory(1);
       setTodayTaken(todayHistory.length);
@@ -107,6 +113,51 @@ export default function HomeScreen({ navigation }) {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const calculateNextAlarmTime = (medications, allAlarms) => {
+    try {
+      const now = moment();
+      let nextAlarm = null;
+      let minTime = null;
+
+      // Check alarms for the next 7 days
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const checkDate = moment(now).add(dayOffset, 'days');
+        const dayOfWeek = checkDate.day() === 0 ? 7 : checkDate.day();
+
+        medications.forEach(med => {
+          const medAlarms = allAlarms.filter(a => 
+            a.medicationId === med.id && 
+            a.isEnabled &&
+            a.daysOfWeek.includes(dayOfWeek)
+          );
+
+          medAlarms.forEach(alarm => {
+            const [hours, minutes] = alarm.time.split(':').map(Number);
+            const alarmMoment = moment(checkDate).set({
+              hour: hours,
+              minute: minutes,
+              second: 0,
+              millisecond: 0
+            });
+
+            // Only consider future alarms
+            if (alarmMoment.isAfter(now)) {
+              if (!minTime || alarmMoment.isBefore(minTime)) {
+                minTime = alarmMoment;
+                nextAlarm = alarmMoment.toISOString();
+              }
+            }
+          });
+        });
+      }
+
+      return nextAlarm;
+    } catch (error) {
+      console.error('Error calculating next alarm:', error);
+      return null;
     }
   };
 
@@ -152,7 +203,12 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>🏠 Dashboard</Text>
+        <Text style={styles.title}>Dashboard</Text>
+
+        {/* Circular Timer for Next Alarm */}
+        <View style={styles.timerSection}>
+          <CircularTimer nextAlarmTime={nextAlarmTime} size={140} strokeWidth={10} />
+        </View>
 
         {/* Quick Stats */}
         <View style={styles.quickStatsContainer}>
@@ -166,14 +222,14 @@ export default function HomeScreen({ navigation }) {
           </View>
           <View style={styles.quickStatCard}>
             <Text style={styles.quickStatValue}>{currentStreak}</Text>
-            <Text style={styles.quickStatLabel}>Day Streak 🔥</Text>
+            <Text style={styles.quickStatLabel}>Day Streak</Text>
           </View>
         </View>
 
         {/* Low Pill Count Alert */}
         {lowPillCount.length > 0 && (
           <View style={[styles.section, styles.alertSection]}>
-            <Text style={styles.alertTitle}>⚠️ Low Pill Count</Text>
+            <Text style={styles.alertTitle}>Low Pill Count</Text>
             {lowPillCount.map(med => (
               <View key={med.id} style={styles.alertItem}>
                 <Text style={styles.alertText}>
@@ -223,28 +279,28 @@ export default function HomeScreen({ navigation }) {
               style={styles.actionButton}
               onPress={() => navigation.navigate('Medications')}
             >
-              <Text style={styles.actionIcon}>💊</Text>
+              <Text style={styles.actionIcon}>M</Text>
               <Text style={styles.actionText}>Medications</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('Statistics')}
             >
-              <Text style={styles.actionIcon}>📊</Text>
+              <Text style={styles.actionIcon}>S</Text>
               <Text style={styles.actionText}>Statistics</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('Calendar')}
             >
-              <Text style={styles.actionIcon}>📅</Text>
+              <Text style={styles.actionIcon}>C</Text>
               <Text style={styles.actionText}>Calendar</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('Lights')}
             >
-              <Text style={styles.actionIcon}>💡</Text>
+              <Text style={styles.actionIcon}>L</Text>
               <Text style={styles.actionText}>Lights</Text>
             </TouchableOpacity>
           </View>
@@ -284,6 +340,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#2c3e50',
+  },
+  timerSection: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   quickStatsContainer: {
     flexDirection: 'row',
