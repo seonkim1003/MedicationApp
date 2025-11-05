@@ -1,0 +1,169 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import SmartLightService from '../services/SmartLightService';
+
+export default function LightsScreen({ navigation }) {
+  const [lights, setLights] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadLights();
+    // Set up a refresh interval
+    const interval = setInterval(loadLights, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadLights = async () => {
+    try {
+      const smartLightService = SmartLightService.getInstance();
+      const { lights: loadedLights, error } = await smartLightService.getSmartLights();
+      if (error) {
+        console.warn('Error loading lights:', error);
+      } else {
+        setLights(loadedLights);
+      }
+    } catch (error) {
+      console.error('Error loading lights:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Loading lights...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>💡 Smart Lights</Text>
+
+        <View style={styles.section}>
+          {lights.length === 0 ? (
+            <Text style={styles.emptyText}>No smart lights found</Text>
+          ) : (
+            lights.map((light) => (
+              <TouchableOpacity
+                key={light.id}
+                style={styles.lightItem}
+                onPress={() => navigation.navigate('LightDetail', { light })}
+              >
+                <View style={styles.lightHeader}>
+                  <Text style={styles.lightName}>{light.name}</Text>
+                  <View style={[styles.statusIndicator, { backgroundColor: light.isOnline ? '#4CAF50' : '#F44336' }]} />
+                </View>
+                <Text style={styles.lightDetails}>
+                  Status: {light.isOnline ? '🟢 Online' : '🔴 Offline'} | 
+                  Power: {light.isOn ? 'ON' : 'OFF'} | 
+                  Brightness: {light.brightness}%
+                </Text>
+                <View style={[styles.colorPreview, { backgroundColor: light.color }]} />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.button} onPress={loadLights}>
+            <Text style={styles.buttonText}>Refresh Lights</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 50,
+    color: '#666',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#2c3e50',
+  },
+  section: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#95a5a6',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 20,
+  },
+  lightItem: {
+    backgroundColor: '#ecf0f1',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  lightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  lightName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    flex: 1,
+  },
+  statusIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: 10,
+  },
+  lightDetails: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 8,
+  },
+  colorPreview: {
+    width: '100%',
+    height: 20,
+    borderRadius: 4,
+  },
+  button: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+
+
