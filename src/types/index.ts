@@ -7,6 +7,15 @@ export interface Medication {
   isActive: boolean;
   pillCount: number;
   alarms: MedicationAlarm[]; // Array of alarms for this medication
+  groupId?: string; // Optional: ID of the group this medication belongs to
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicationGroup {
+  id: string;
+  name: string;
+  color?: string; // Optional: Group color for visual organization
   createdAt: string;
   updatedAt: string;
 }

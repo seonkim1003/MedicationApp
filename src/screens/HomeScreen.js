@@ -311,41 +311,6 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Medications')}
-            >
-              <Text style={styles.actionIcon}>M</Text>
-              <Text style={styles.actionText}>Medications</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Statistics')}
-            >
-              <Text style={styles.actionIcon}>S</Text>
-              <Text style={styles.actionText}>Statistics</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Calendar')}
-            >
-              <Text style={styles.actionIcon}>C</Text>
-              <Text style={styles.actionText}>Calendar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate('Lights')}
-            >
-              <Text style={styles.actionIcon}>L</Text>
-              <Text style={styles.actionText}>Lights</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Refresh Button */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.button} onPress={loadDashboard}>
@@ -517,30 +482,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 20,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  actionButton: {
-    width: (SCREEN_WIDTH - 80) / 2,
-    backgroundColor: '#ecf0f1',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 100,
-  },
-  actionIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
   },
   button: {
     backgroundColor: '#3498db',

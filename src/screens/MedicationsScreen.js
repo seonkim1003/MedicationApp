@@ -1,25 +1,29 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, Pressable, Platform, Dimensions } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Medication, MedicationAlarm, DAYS_OF_WEEK } from '../types';
+import { Medication, MedicationAlarm, MedicationGroup, DAYS_OF_WEEK } from '../types';
 import MedicationManager from '../services/MedicationManager';
 import AlarmService from '../services/AlarmService';
 import HistoryService from '../services/HistoryService';
 import LightNameService from '../services/LightNameService';
+import GroupService from '../services/GroupService';
 import Toast from 'react-native-toast-message';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function MedicationsScreen({ lights, alarmService }) {
   const [medications, setMedications] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lightsWithCustomNames, setLightsWithCustomNames] = useState([]);
   const lightNameService = LightNameService.getInstance();
+  const groupService = GroupService.getInstance();
 
   // Add Medication Modal state
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [medName, setMedName] = useState('');
   const [pillCount, setPillCount] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
 
   // Connect Lights Modal state
   const [isConnectLightsVisible, setIsConnectLightsVisible] = useState(false);
@@ -41,6 +45,14 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [selectedMedicationForRefill, setSelectedMedicationForRefill] = useState(null);
   const [refillAmount, setRefillAmount] = useState('');
 
+  // Group Management Modal state
+  const [isGroupModalVisible, setIsGroupModalVisible] = useState(false);
+  const [isEditGroupModalVisible, setIsEditGroupModalVisible] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [isAssignGroupModalVisible, setIsAssignGroupModalVisible] = useState(false);
+  const [selectedMedicationForGroup, setSelectedMedicationForGroup] = useState(null);
+
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
@@ -48,6 +60,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
   React.useEffect(() => {
     loadMedications();
+    loadGroups();
     loadLightsWithCustomNames();
   }, [lights]);
 
@@ -81,10 +94,228 @@ export default function MedicationsScreen({ lights, alarmService }) {
     }
   };
 
+  const loadGroups = async () => {
+    try {
+      const loaded = await groupService.loadGroups();
+      setGroups(loaded);
+    } catch (error) {
+      console.error('Error loading groups:', error);
+    }
+  };
+
+  const organizeMedicationsByGroup = () => {
+    const grouped = {};
+    const ungrouped = [];
+
+    medications.forEach(med => {
+      if (med.groupId) {
+        if (!grouped[med.groupId]) {
+          grouped[med.groupId] = [];
+        }
+        grouped[med.groupId].push(med);
+      } else {
+        ungrouped.push(med);
+      }
+    });
+
+    return { grouped, ungrouped };
+  };
+
   const openAddMedication = () => {
     setMedName('');
     setPillCount('');
+    setSelectedGroupId(null);
     setIsAddVisible(true);
+  };
+
+  const openCreateGroup = () => {
+    setGroupName('');
+    setSelectedGroup(null);
+    setIsGroupModalVisible(true);
+  };
+
+  const openEditGroup = (group) => {
+    setGroupName(group.name);
+    setSelectedGroup(group);
+    setIsEditGroupModalVisible(true);
+  };
+
+  const openAssignGroup = (medication) => {
+    setSelectedMedicationForGroup(medication);
+    setIsAssignGroupModalVisible(true);
+  };
+
+  const saveGroup = async () => {
+    try {
+      if (!groupName.trim()) {
+        Toast.show({
+          type: 'error',
+          text1: 'Name required',
+          text2: 'Please enter a group name',
+        });
+        return;
+      }
+
+      const newGroup = {
+        id: Date.now().toString(),
+        name: groupName.trim(),
+        color: COLOR_CHOICES[Math.floor(Math.random() * COLOR_CHOICES.length)],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await groupService.addGroup(newGroup);
+      await loadGroups();
+      setIsGroupModalVisible(false);
+      setGroupName('');
+      Toast.show({
+        type: 'success',
+        text1: 'Group Created',
+        text2: `Group "${newGroup.name}" has been created`,
+      });
+    } catch (error) {
+      console.error('Error creating group:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to create group',
+      });
+    }
+  };
+
+  const updateGroup = async () => {
+    try {
+      if (!groupName.trim() || !selectedGroup) {
+        Toast.show({
+          type: 'error',
+          text1: 'Name required',
+          text2: 'Please enter a group name',
+        });
+        return;
+      }
+
+      const updatedGroup = {
+        ...selectedGroup,
+        name: groupName.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await groupService.updateGroup(updatedGroup);
+      await loadGroups();
+      setIsEditGroupModalVisible(false);
+      setGroupName('');
+      setSelectedGroup(null);
+      Toast.show({
+        type: 'success',
+        text1: 'Group Updated',
+        text2: `Group "${updatedGroup.name}" has been updated`,
+      });
+    } catch (error) {
+      console.error('Error updating group:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to update group',
+      });
+    }
+  };
+
+  const deleteGroup = async (groupId) => {
+    try {
+      Alert.alert(
+        'Delete Group',
+        'Are you sure you want to delete this group? Medications in this group will become ungrouped.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Remove groupId from all medications in this group
+                const medicationManager = MedicationManager.getInstance();
+                const allMedications = await medicationManager.loadMedications();
+                const updatedMedications = allMedications.map(med => {
+                  if (med.groupId === groupId) {
+                    return {
+                      ...med,
+                      groupId: undefined,
+                      updatedAt: new Date().toISOString(),
+                    };
+                  }
+                  return med;
+                });
+                await medicationManager.saveMedications(updatedMedications);
+
+                // Delete the group
+                await groupService.deleteGroup(groupId);
+                await loadGroups();
+                await loadMedications();
+                Toast.show({
+                  type: 'success',
+                  text1: 'Group Deleted',
+                  text2: 'Group has been deleted and medications ungrouped',
+                });
+              } catch (error) {
+                console.error('Error deleting group:', error);
+                Toast.show({
+                  type: 'error',
+                  text1: 'Error',
+                  text2: 'Failed to delete group',
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error showing delete confirmation:', error);
+    }
+  };
+
+  const assignMedicationToGroup = async (groupId) => {
+    try {
+      if (!selectedMedicationForGroup) return;
+
+      const medicationManager = MedicationManager.getInstance();
+      const medication = await medicationManager.getMedication(selectedMedicationForGroup.id);
+      if (!medication) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Medication not found',
+        });
+        return;
+      }
+
+      const updatedMedication = {
+        ...medication,
+        groupId: groupId || undefined,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await medicationManager.updateMedication(updatedMedication);
+      await loadMedications();
+      setIsAssignGroupModalVisible(false);
+      setSelectedMedicationForGroup(null);
+      
+      const groupName = groupId ? groups.find(g => g.id === groupId)?.name : 'Ungrouped';
+      Toast.show({
+        type: 'success',
+        text1: 'Group Updated',
+        text2: `Medication assigned to ${groupName}`,
+      });
+    } catch (error) {
+      console.error('Error assigning medication to group:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to assign medication to group',
+      });
+    }
   };
 
   const openConnectLights = (medication) => {
@@ -204,6 +435,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
         isActive: true,
         pillCount: Number.isNaN(count) ? 0 : count,
         alarms: [],
+        groupId: selectedGroupId || undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -211,6 +443,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
       await medicationManager.addMedication(newMed);
       await loadMedications();
       setIsAddVisible(false);
+      setSelectedGroupId(null);
       Toast.show({ type: 'success', text1: 'Medication Added' });
     } catch (e) {
       console.error('Add medication error:', e);
@@ -546,124 +779,182 @@ export default function MedicationsScreen({ lights, alarmService }) {
     );
   }
 
+  const { grouped, ungrouped } = organizeMedicationsByGroup();
+  const renderMedication = (medication) => (
+    <View key={medication.id} style={styles.medicationItem}>
+      <View style={styles.medicationHeader}>
+        <Text style={styles.medicationName}>{medication.name}</Text>
+        <View style={styles.medicationHeaderButtons}>
+          <TouchableOpacity 
+            style={styles.addAlarmButton}
+            onPress={() => openAddAlarm(medication)}
+          >
+            <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.connectLightsButton}
+            onPress={() => openConnectLights(medication)}
+          >
+            <Text style={styles.connectLightsButtonText}>Light</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.groupButton}
+            onPress={() => openAssignGroup(medication)}
+          >
+            <Text style={styles.groupButtonText}>Group</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => deleteMedication(medication.id)}
+          >
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <Text style={styles.medicationDetails}>
+        Pills: {medication.pillCount} | 
+        Alarms: {medication.alarms?.length || 0}
+        {medication.pillCount <= 5 && (
+          <Text style={styles.lowPillWarning}> - Low!</Text>
+        )}
+      </Text>
+      
+      {/* Connected Lights List - Always show beneath medication details */}
+      {(() => {
+        // Get all unique light IDs from all alarms for this medication
+        const allLightIds = new Set();
+        (medication.alarms || []).forEach(alarm => {
+          if (alarm.lightIds && alarm.lightIds.length > 0) {
+            alarm.lightIds.forEach(id => allLightIds.add(id));
+          }
+        });
+        
+        const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
+        
+        return (
+          <View style={styles.connectedLightsContainer}>
+            <Text style={styles.connectedLightsLabel}>
+              {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
+            </Text>
+            {connectedLights.length > 0 ? (
+              <View style={styles.connectedLightsList}>
+                {connectedLights.map(light => (
+                  <View key={light.id} style={styles.connectedLightChip}>
+                    <Text style={styles.connectedLightChipText}>{light.displayName || light.name}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
+            )}
+          </View>
+        );
+      })()}
+      
+      {(medication.alarms || []).map((alarm) => (
+        <View key={alarm.id} style={styles.alarmItem}>
+          <View style={styles.alarmHeader}>
+            <View style={styles.alarmHeaderLeft}>
+              <Text style={styles.alarmTime}>{alarm.time}</Text>
+              <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+            </View>
+            <TouchableOpacity
+              style={styles.deleteAlarmButton}
+              onPress={() => deleteAlarm(alarm.id, medication.id)}
+            >
+              <Text style={styles.deleteAlarmButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.alarmDetails}>
+            Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
+          </Text>
+        </View>
+      ))}
+      
+      <View style={styles.pillButtonsContainer}>
+        <TouchableOpacity 
+          style={[styles.pillButton, styles.refillButton]}
+          onPress={() => openRefillModal(medication)}
+        >
+          <Text style={styles.pillButtonText}>Refill Pills</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.pillButton}
+          onPress={() => decreasePillCount(medication.id)}
+        >
+          <Text style={styles.pillButtonText}>Take Pill</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>My Medications</Text>
 
-        {/* Medications Section */}
-        <View style={styles.section}>
-          {medications.length === 0 ? (
-            <Text style={styles.emptyText}>No medications added yet</Text>
-          ) : (
-            medications.map((medication) => (
-              <View key={medication.id} style={styles.medicationItem}>
-                <View style={styles.medicationHeader}>
-                  <Text style={styles.medicationName}>{medication.name}</Text>
-                  <View style={styles.medicationHeaderButtons}>
-                    <TouchableOpacity 
-                      style={styles.addAlarmButton}
-                      onPress={() => openAddAlarm(medication)}
-                    >
-                      <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.connectLightsButton}
-                      onPress={() => openConnectLights(medication)}
-                    >
-                      <Text style={styles.connectLightsButtonText}>Light</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.deleteButton}
-                      onPress={() => deleteMedication(medication.id)}
-                    >
-                      <Text style={styles.deleteButtonText}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <Text style={styles.medicationDetails}>
-                  Pills: {medication.pillCount} | 
-                  Alarms: {medication.alarms?.length || 0}
-                  {medication.pillCount <= 5 && (
-                    <Text style={styles.lowPillWarning}> - Low!</Text>
-                  )}
-                </Text>
-                
-                {/* Connected Lights List - Always show beneath medication details */}
-                {(() => {
-                  // Get all unique light IDs from all alarms for this medication
-                  const allLightIds = new Set();
-                  (medication.alarms || []).forEach(alarm => {
-                    if (alarm.lightIds && alarm.lightIds.length > 0) {
-                      alarm.lightIds.forEach(id => allLightIds.add(id));
-                    }
-                  });
-                  
-                  const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
-                  
-                  return (
-                    <View style={styles.connectedLightsContainer}>
-                      <Text style={styles.connectedLightsLabel}>
-                        {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
-                      </Text>
-                      {connectedLights.length > 0 ? (
-                        <View style={styles.connectedLightsList}>
-                          {connectedLights.map(light => (
-                            <View key={light.id} style={styles.connectedLightChip}>
-                              <Text style={styles.connectedLightChipText}>{light.displayName || light.name}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
-                      )}
-                    </View>
-                  );
-                })()}
-                
-                {(medication.alarms || []).map((alarm) => (
-                  <View key={alarm.id} style={styles.alarmItem}>
-                    <View style={styles.alarmHeader}>
-                      <View style={styles.alarmHeaderLeft}>
-                        <Text style={styles.alarmTime}>{alarm.time}</Text>
-                        <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+        {/* Groups Section */}
+        {Object.keys(grouped).length > 0 && (
+          <>
+            {Object.keys(grouped)
+              .map(groupId => {
+                const group = groups.find(g => g.id === groupId);
+                return group ? { group, medications: grouped[groupId] } : null;
+              })
+              .filter(item => item !== null)
+              .sort((a, b) => a.group.name.localeCompare(b.group.name))
+              .map(({ group, medications }) => (
+                <View key={group.id} style={styles.section}>
+                  <View style={styles.groupContainer}>
+                    <View style={styles.groupHeader}>
+                      <View style={[styles.groupColorIndicator, { backgroundColor: group.color || '#3498db' }]} />
+                      <Text style={styles.groupName}>{group.name}</Text>
+                      <View style={styles.groupHeaderButtons}>
+                        <TouchableOpacity 
+                          style={styles.editGroupButton}
+                          onPress={() => openEditGroup(group)}
+                        >
+                          <Text style={styles.editGroupButtonText}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.deleteGroupButton}
+                          onPress={() => deleteGroup(group.id)}
+                        >
+                          <Text style={styles.deleteGroupButtonText}>✕</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        style={styles.deleteAlarmButton}
-                        onPress={() => deleteAlarm(alarm.id, medication.id)}
-                      >
-                        <Text style={styles.deleteAlarmButtonText}>✕</Text>
-                      </TouchableOpacity>
                     </View>
-                    <Text style={styles.alarmDetails}>
-                      Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
-                    </Text>
+                    <View style={styles.groupMedications}>
+                      {medications.map(med => renderMedication(med))}
+                    </View>
                   </View>
-                ))}
-                
-                <View style={styles.pillButtonsContainer}>
-                  <TouchableOpacity 
-                    style={[styles.pillButton, styles.refillButton]}
-                    onPress={() => openRefillModal(medication)}
-                  >
-                    <Text style={styles.pillButtonText}>Refill Pills</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.pillButton}
-                    onPress={() => decreasePillCount(medication.id)}
-                  >
-                    <Text style={styles.pillButtonText}>Take Pill</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
-            ))
-          )}
-        </View>
+              ))}
+          </>
+        )}
+
+        {/* Ungrouped Medications Section */}
+        {ungrouped.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ungrouped Medications</Text>
+            {ungrouped.map(med => renderMedication(med))}
+          </View>
+        )}
+
+        {/* Empty State */}
+        {medications.length === 0 && (
+          <View style={styles.section}>
+            <Text style={styles.emptyText}>No medications added yet</Text>
+          </View>
+        )}
 
         {/* Actions */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.button} onPress={openAddMedication}>
             <Text style={styles.buttonText}>Add Medication</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={openCreateGroup}>
+            <Text style={styles.buttonText}>Create Group</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -702,6 +993,30 @@ export default function MedicationsScreen({ lights, alarmService }) {
                   onChangeText={setPillCount}
                   style={styles.input}
                 />
+
+                <Text style={styles.label}>Group (Optional)</Text>
+                <View style={styles.groupSelectionContainer}>
+                  <TouchableOpacity
+                    style={[styles.groupOption, !selectedGroupId && styles.groupOptionSelected]}
+                    onPress={() => setSelectedGroupId(null)}
+                  >
+                    <Text style={[styles.groupOptionText, !selectedGroupId && styles.groupOptionTextSelected]}>
+                      None (Ungrouped)
+                    </Text>
+                  </TouchableOpacity>
+                  {groups.map(group => (
+                    <TouchableOpacity
+                      key={group.id}
+                      style={[styles.groupOption, selectedGroupId === group.id && styles.groupOptionSelected]}
+                      onPress={() => setSelectedGroupId(group.id)}
+                    >
+                      <View style={[styles.groupColorDot, { backgroundColor: group.color || '#3498db' }]} />
+                      <Text style={[styles.groupOptionText, selectedGroupId === group.id && styles.groupOptionTextSelected]}>
+                        {group.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAddVisible(false)}>
@@ -975,6 +1290,167 @@ export default function MedicationsScreen({ lights, alarmService }) {
         </Pressable>
       </Modal>
 
+      {/* Create Group Modal */}
+      <Modal
+        visible={isGroupModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsGroupModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsGroupModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Create Group</Text>
+                <Text style={styles.modalSubtitle}>Organize your medications into groups (e.g., Morning, Evening, Vitamins)</Text>
+
+                <Text style={styles.label}>Group Name</Text>
+                <TextInput
+                  placeholder="Enter group name (e.g., Morning Meds, Vitamins)"
+                  value={groupName}
+                  onChangeText={setGroupName}
+                  style={styles.input}
+                  autoFocus={true}
+                />
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={[styles.button, styles.secondaryButton]} 
+                    onPress={() => setIsGroupModalVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.button} 
+                    onPress={saveGroup}
+                  >
+                    <Text style={styles.buttonText}>Create</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Edit Group Modal */}
+      <Modal
+        visible={isEditGroupModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsEditGroupModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsEditGroupModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Edit Group</Text>
+
+                <Text style={styles.label}>Group Name</Text>
+                <TextInput
+                  placeholder="Enter group name"
+                  value={groupName}
+                  onChangeText={setGroupName}
+                  style={styles.input}
+                  autoFocus={true}
+                />
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={[styles.button, styles.secondaryButton]} 
+                    onPress={() => setIsEditGroupModalVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.button} 
+                    onPress={updateGroup}
+                  >
+                    <Text style={styles.buttonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Assign Group Modal */}
+      <Modal
+        visible={isAssignGroupModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsAssignGroupModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsAssignGroupModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Assign Group</Text>
+                <Text style={styles.modalSubtitle}>
+                  Select a group for {selectedMedicationForGroup?.name}
+                </Text>
+
+                <Text style={styles.label}>Select Group</Text>
+                <View style={styles.groupSelectionContainer}>
+                  <TouchableOpacity
+                    style={[styles.groupOption, !selectedMedicationForGroup?.groupId && styles.groupOptionSelected]}
+                    onPress={() => {
+                      assignMedicationToGroup(null);
+                    }}
+                  >
+                    <Text style={[styles.groupOptionText, !selectedMedicationForGroup?.groupId && styles.groupOptionTextSelected]}>
+                      None (Ungrouped)
+                    </Text>
+                  </TouchableOpacity>
+                  {groups.map(group => {
+                    const isSelected = selectedMedicationForGroup?.groupId === group.id;
+                    return (
+                      <TouchableOpacity
+                        key={group.id}
+                        style={[styles.groupOption, isSelected && styles.groupOptionSelected]}
+                        onPress={() => {
+                          assignMedicationToGroup(group.id);
+                        }}
+                      >
+                        <View style={[styles.groupColorDot, { backgroundColor: group.color || '#3498db' }]} />
+                        <Text style={[styles.groupOptionText, isSelected && styles.groupOptionTextSelected]}>
+                          {group.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={[styles.button, styles.secondaryButton]} 
+                    onPress={() => setIsAssignGroupModalVisible(false)}
+                  >
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
@@ -1073,22 +1549,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   medicationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    flexDirection: 'column',
+    marginBottom: 12,
   },
   medicationHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 10,
+    flexWrap: 'wrap',
   },
   medicationName: {
     fontSize: 24,
     fontWeight: '600',
     color: '#212529',
-    flex: 1,
     letterSpacing: -0.3,
+    marginBottom: 4,
   },
   medicationDetails: {
     fontSize: 14,
@@ -1598,6 +2074,127 @@ const styles = StyleSheet.create({
   },
   lightChipTextSelected: {
     color: 'white',
+  },
+  // Group Styles
+  groupContainer: {
+    backgroundColor: 'transparent',
+    borderRadius: 8,
+    padding: 0,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: '#dee2e6',
+  },
+  groupColorIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  groupName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2c3e50',
+    flex: 1,
+  },
+  groupHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editGroupButton: {
+    backgroundColor: '#3498db',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editGroupButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteGroupButton: {
+    backgroundColor: '#dc3545',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteGroupButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  groupMedications: {
+    marginTop: 8,
+  },
+  groupButton: {
+    backgroundColor: '#9b59b6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    shadowColor: '#9b59b6',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  groupButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  groupSelectionContainer: {
+    marginBottom: 10,
+  },
+  groupOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#dee2e6',
+  },
+  groupOptionSelected: {
+    backgroundColor: '#e7f3ff',
+    borderColor: '#007bff',
+    borderWidth: 2,
+  },
+  groupColorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  groupOptionText: {
+    fontSize: 16,
+    color: '#495057',
+    fontWeight: '500',
+  },
+  groupOptionTextSelected: {
+    color: '#007bff',
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 12,
   },
 });
 
