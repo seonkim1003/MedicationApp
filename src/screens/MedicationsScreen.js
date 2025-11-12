@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, Pressable, Platform, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, Modal, Pressable, Platform, Dimensions, Keyboard } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Medication, MedicationAlarm, MedicationGroup, DAYS_OF_WEEK } from '../types';
 import MedicationManager from '../services/MedicationManager';
@@ -52,6 +52,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [isAssignGroupModalVisible, setIsAssignGroupModalVisible] = useState(false);
   const [selectedMedicationForGroup, setSelectedMedicationForGroup] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({}); // Track which groups are expanded
 
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -316,6 +317,17 @@ export default function MedicationsScreen({ lights, alarmService }) {
         text2: 'Failed to assign medication to group',
       });
     }
+  };
+
+  const toggleGroupExpansion = (groupId) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
+
+  const isGroupExpanded = (groupId) => {
+    return expandedGroups[groupId] === true;
   };
 
   const openConnectLights = (medication) => {
@@ -903,33 +915,52 @@ export default function MedicationsScreen({ lights, alarmService }) {
               })
               .filter(item => item !== null)
               .sort((a, b) => a.group.name.localeCompare(b.group.name))
-              .map(({ group, medications }) => (
-                <View key={group.id} style={styles.section}>
-                  <View style={styles.groupContainer}>
-                    <View style={styles.groupHeader}>
-                      <View style={[styles.groupColorIndicator, { backgroundColor: group.color || '#3498db' }]} />
-                      <Text style={styles.groupName}>{group.name}</Text>
-                      <View style={styles.groupHeaderButtons}>
-                        <TouchableOpacity 
-                          style={styles.editGroupButton}
-                          onPress={() => openEditGroup(group)}
-                        >
-                          <Text style={styles.editGroupButtonText}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.deleteGroupButton}
-                          onPress={() => deleteGroup(group.id)}
-                        >
-                          <Text style={styles.deleteGroupButtonText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    <View style={styles.groupMedications}>
-                      {medications.map(med => renderMedication(med))}
+              .map(({ group, medications }) => {
+                const isExpanded = isGroupExpanded(group.id);
+                return (
+                  <View key={group.id} style={styles.section}>
+                    <View style={styles.groupContainer}>
+                      <TouchableOpacity 
+                        style={styles.groupHeader}
+                        onPress={() => toggleGroupExpansion(group.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.groupHeaderLeft}>
+                          <View style={[styles.groupColorIndicator, { backgroundColor: group.color || '#3498db' }]} />
+                          <Text style={styles.groupName}>{group.name}</Text>
+                          <Text style={styles.groupMedicationCount}>({medications.length})</Text>
+                          <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+                        </View>
+                        <View style={styles.groupHeaderButtons}>
+                          <TouchableOpacity 
+                            style={styles.editGroupButton}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              openEditGroup(group);
+                            }}
+                          >
+                            <Text style={styles.editGroupButtonText}>✏️</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={styles.deleteGroupButton}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              deleteGroup(group.id);
+                            }}
+                          >
+                            <Text style={styles.deleteGroupButtonText}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </TouchableOpacity>
+                      {isExpanded && (
+                        <View style={styles.groupMedications}>
+                          {medications.map(med => renderMedication(med))}
+                        </View>
+                      )}
                     </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
           </>
         )}
 
@@ -988,10 +1019,13 @@ export default function MedicationsScreen({ lights, alarmService }) {
                 <Text style={styles.label}>Amount of Pills</Text>
                 <TextInput
                   placeholder="Enter number of pills you have"
-                  keyboardType="number-pad"
+                  keyboardType="numeric"
                   value={pillCount}
                   onChangeText={setPillCount}
                   style={styles.input}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
 
                 <Text style={styles.label}>Group (Optional)</Text>
@@ -1266,10 +1300,13 @@ export default function MedicationsScreen({ lights, alarmService }) {
                 <Text style={styles.label}>Number of Pills to Add</Text>
                 <TextInput
                   placeholder="Enter number of pills"
-                  keyboardType="number-pad"
+                  keyboardType="numeric"
                   value={refillAmount}
                   onChangeText={setRefillAmount}
                   style={styles.input}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
 
                 <Text style={styles.modalSubtitle}>
@@ -1507,7 +1544,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   title: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
@@ -1516,9 +1553,9 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1528,18 +1565,19 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#adb5bd',
     fontStyle: 'italic',
     textAlign: 'center',
-    padding: 12,
-    marginVertical: 4,
+    padding: 20,
+    marginVertical: 6,
+    fontWeight: '500',
   },
   medicationItem: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 18,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -1555,33 +1593,34 @@ const styles = StyleSheet.create({
   medicationHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
+    gap: 10,
+    marginTop: 12,
     flexWrap: 'wrap',
   },
   medicationName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '600',
     color: '#212529',
     letterSpacing: -0.3,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   medicationDetails: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6c757d',
-    marginBottom: 10,
-    lineHeight: 20,
+    marginBottom: 12,
+    lineHeight: 24,
+    fontWeight: '500',
   },
   lowPillWarning: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#dc3545',
     fontWeight: '600',
   },
   alarmItem: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 10,
     borderLeftWidth: 4,
     borderLeftColor: '#007bff',
   },
@@ -1589,46 +1628,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   alarmHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
   },
   alarmTime: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
     color: '#212529',
     letterSpacing: 0.5,
   },
   alarmColorIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: '#dee2e6',
   },
   deleteAlarmButton: {
     backgroundColor: '#dc3545',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 10,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: 10,
+    minWidth: 36,
+    minHeight: 36,
   },
   deleteAlarmButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
-    lineHeight: 14,
+    lineHeight: 18,
   },
   alarmDetails: {
-    fontSize: 12,
+    fontSize: 15,
     color: '#6c757d',
-    lineHeight: 18,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   pillButtonsContainer: {
     flexDirection: 'row',
@@ -1637,10 +1679,12 @@ const styles = StyleSheet.create({
   },
   pillButton: {
     backgroundColor: '#007bff',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
+    minHeight: 50,
     shadowColor: '#007bff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -1653,30 +1697,31 @@ const styles = StyleSheet.create({
   },
   pillButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
   connectedLightsContainer: {
     marginTop: 12,
     marginBottom: 12,
-    padding: 12,
+    padding: 14,
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
   connectedLightsLabel: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
     color: '#495057',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   noLightsText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#adb5bd',
     fontStyle: 'italic',
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: '500',
   },
   connectedLightsList: {
     flexDirection: 'row',
@@ -1684,25 +1729,29 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   connectedLightChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: '#e9ecef',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#dee2e6',
+    minHeight: 36,
+    justifyContent: 'center',
   },
   connectedLightChipText: {
     color: '#495057',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
   },
   button: {
     backgroundColor: '#007bff',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
     minWidth: 100,
+    minHeight: 50,
     shadowColor: '#007bff',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -1711,7 +1760,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -1724,9 +1773,9 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 20,
+    padding: 24,
     width: '90%',
-    maxWidth: 400,
+    maxWidth: 450,
           maxHeight: SCREEN_HEIGHT * 0.85,
     justifyContent: 'flex-start',
     overflow: 'hidden',
@@ -1741,9 +1790,9 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 20,
     color: '#212529',
     textAlign: 'center',
     letterSpacing: -0.3,
@@ -1752,18 +1801,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderWidth: 1.5,
     borderColor: '#dee2e6',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 10,
-    fontSize: 14,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 14,
+    fontSize: 18,
     color: '#212529',
+    minHeight: 48,
   },
   label: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#495057',
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 8,
     fontWeight: '600',
     letterSpacing: 0.2,
   },
@@ -1793,14 +1843,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   lightChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 20,
     backgroundColor: '#e9ecef',
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
+    marginRight: 10,
+    marginBottom: 10,
+    borderWidth: 2,
     borderColor: '#dee2e6',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   lightChipSelected: {
     backgroundColor: '#007bff',
@@ -1808,7 +1860,7 @@ const styles = StyleSheet.create({
   },
   lightChipText: {
     color: '#495057',
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: '500',
   },
   modalActions: {
@@ -1826,9 +1878,11 @@ const styles = StyleSheet.create({
   },
   addAlarmButton: {
     backgroundColor: '#28a745',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
     shadowColor: '#28a745',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -1837,14 +1891,16 @@ const styles = StyleSheet.create({
   },
   addAlarmButtonText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
   },
   connectLightsButton: {
     backgroundColor: '#ffc107',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
     shadowColor: '#ffc107',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -1853,15 +1909,16 @@ const styles = StyleSheet.create({
   },
   connectLightsButtonText: {
     color: '#212529',
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
   },
   deleteButton: {
     backgroundColor: '#dc3545',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    minWidth: 70,
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    minWidth: 90,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#dc3545',
@@ -1871,7 +1928,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   deleteButtonText: {
-    fontSize: 12,
+    fontSize: 15,
     color: 'white',
     fontWeight: '600',
   },
@@ -2029,19 +2086,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dayChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 16,
     backgroundColor: '#ecf0f1',
     marginRight: 6,
     marginBottom: 6,
+    minHeight: 40,
+    justifyContent: 'center',
   },
   dayChipSelected: {
     backgroundColor: '#3498db',
   },
   dayChipText: {
     color: '#2c3e50',
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',
@@ -2061,7 +2121,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -2084,66 +2144,102 @@ const styles = StyleSheet.create({
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: '#dee2e6',
+    justifyContent: 'space-between',
+    padding: 18,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    marginBottom: 0,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    minHeight: 60,
+  },
+  groupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   groupColorIndicator: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     marginRight: 10,
     borderWidth: 2,
     borderColor: '#fff',
   },
   groupName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     color: '#2c3e50',
+    marginLeft: 10,
     flex: 1,
+  },
+  groupMedicationCount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6c757d',
+    marginLeft: 8,
+  },
+  expandIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#007bff',
+    marginLeft: 8,
+    minWidth: 24,
   },
   groupHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginLeft: 8,
   },
   editGroupButton: {
     backgroundColor: '#3498db',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    minWidth: 36,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   editGroupButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '600',
   },
   deleteGroupButton: {
     backgroundColor: '#dc3545',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    minWidth: 36,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteGroupButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
   },
   groupMedications: {
-    marginTop: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   groupButton: {
     backgroundColor: '#9b59b6',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
     shadowColor: '#9b59b6',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -2152,7 +2248,7 @@ const styles = StyleSheet.create({
   },
   groupButtonText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   groupSelectionContainer: {
@@ -2162,11 +2258,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 2,
     borderColor: '#dee2e6',
+    minHeight: 52,
   },
   groupOptionSelected: {
     backgroundColor: '#e7f3ff',
@@ -2174,15 +2271,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   groupColorDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginRight: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 12,
     borderWidth: 2,
     borderColor: '#fff',
   },
   groupOptionText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#495057',
     fontWeight: '500',
   },
@@ -2191,10 +2288,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: '#2c3e50',
-    marginBottom: 12,
+    marginBottom: 16,
   },
 });
 

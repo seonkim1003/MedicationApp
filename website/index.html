@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedicationRunner - Setup & Feedback</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💊 MedicationRunner</h1>
+            <p class="subtitle">Medication Management App - Setup Instructions & Feedback</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" onclick="showSection('instructions')">Setup Instructions</button>
+            <button class="tab-button" onclick="showSection('feedback')">View Feedback</button>
+        </nav>
+
+        <!-- Setup Instructions Section -->
+        <section id="instructions" class="section active">
+            <div class="content-card">
+                <h2>📱 Getting Started</h2>
+                <p>Welcome to MedicationRunner! Follow these steps to set up the app on your device.</p>
+
+                <div class="instruction-step">
+                    <h3>Step 1: Installation</h3>
+                    <div class="step-content">
+                        <h4>For Android:</h4>
+                        <ol>
+                            <li>Download the APK file from the release page</li>
+                            <li>Enable "Install from Unknown Sources" in your device settings</li>
+                            <li>Open the downloaded APK file and install</li>
+                            <li>Grant all necessary permissions when prompted</li>
+                        </ol>
+                        <h4>For iOS:</h4>
+                        <ol>
+                            <li>Download the app from the App Store (or use TestFlight for beta)</li>
+                            <li>Open the app and allow notifications when prompted</li>
+                            <li>Grant medication tracking permissions</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 2: Initial Setup</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li><strong>Allow Notifications:</strong> The app requires notification permissions to send medication reminders. Grant this permission when prompted.</li>
+                            <li><strong>Enable Alarm Permissions:</strong> On Android, you may need to allow the app to schedule exact alarms in your device settings.</li>
+                            <li><strong>Battery Optimization:</strong> For reliable alarms, disable battery optimization for MedicationRunner in your device settings.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 3: Add Your First Medication</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li>Open the app and navigate to the "Medications" tab</li>
+                            <li>Tap the "+" button (floating action button) to add a new medication</li>
+                            <li>Enter the medication name (e.g., "Aspirin", "Blood Pressure Medicine")</li>
+                            <li>Set the pill count (how many pills you have)</li>
+                            <li>Choose a color for visual identification</li>
+                            <li>Tap "Save" to add the medication</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 4: Set Up Alarms</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li>After adding a medication, tap on it to view details</li>
+                            <li>Tap "Add Alarm" to create a reminder</li>
+                            <li>Set the time for when you need to take the medication</li>
+                            <li>Select the days of the week when this alarm should trigger</li>
+                            <li>Choose a light color for the alarm (optional - for smart light integration)</li>
+                            <li>Tap "Save" to create the alarm</li>
+                            <li>The alarm will automatically schedule notifications</li>
+                        </ol>
+                        <div class="info-box">
+                            <strong>💡 Tip:</strong> You can add multiple alarms for the same medication (e.g., morning and evening doses).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 5: Smart Light Integration (Optional)</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li>Navigate to the "Lights" tab</li>
+                            <li>The app will automatically search for Tuya-compatible smart lights on your network</li>
+                            <li>If lights are found, they will appear in the list</li>
+                            <li>Tap on a light to control it (power, brightness, color)</li>
+                            <li>You can rename lights for easier identification (e.g., "Bedroom", "Bathroom")</li>
+                            <li>When setting up alarms, you can connect lights to flash when the alarm triggers</li>
+                        </ol>
+                        <div class="warning-box">
+                            <strong>⚠️ Note:</strong> Smart light integration requires Tuya account credentials. Make sure your lights are connected to your Tuya account.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 6: Medication Groups (Optional)</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li>In the Medications screen, tap "Create Group"</li>
+                            <li>Enter a group name (e.g., "Morning Medications", "Heart Medicine")</li>
+                            <li>Choose a color for the group</li>
+                            <li>Assign medications to groups by tapping the "Group" button on each medication</li>
+                            <li>Groups help organize multiple medications</li>
+                            <li>Tap on a group name to expand/collapse and view medications inside</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 7: Using the App</h3>
+                    <div class="step-content">
+                        <h4>Dashboard (Home):</h4>
+                        <ul>
+                            <li>View your next medication alarm with countdown timer</li>
+                            <li>See quick stats: total medications, taken today, current streak</li>
+                            <li>View upcoming medications for today</li>
+                            <li>Mark medications as taken directly from the dashboard</li>
+                        </ul>
+                        <h4>When an Alarm Triggers:</h4>
+                        <ul>
+                            <li>The app will display a full-screen alarm with medication name</li>
+                            <li>You can tap "Snooze (5 min)" to delay the alarm by 5 minutes</li>
+                            <li>Tap "I took the medication" to mark it as taken and dismiss the alarm</li>
+                            <li>The app will automatically decrease your pill count</li>
+                        </ul>
+                        <h4>Pill Management:</h4>
+                        <ul>
+                            <li>Use "Take Pill" button to decrease pill count manually</li>
+                            <li>Use "Refill" button to increase pill count when you get a refill</li>
+                            <li>The app will warn you when pill count is low (5 or fewer pills)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 8: View Statistics & Calendar</h3>
+                    <div class="step-content">
+                        <ul>
+                            <li><strong>Statistics Tab:</strong> View your medication adherence rate, current streak, and weekly activity charts</li>
+                            <li><strong>Calendar Tab:</strong> See your medication schedule for the week and track which medications you've taken</li>
+                            <li>Both tabs help you track your medication compliance over time</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>Step 9: Submit Feedback</h3>
+                    <div class="step-content">
+                        <ol>
+                            <li>Navigate to the "Feedback" tab</li>
+                            <li>Rate the app (1-5 stars)</li>
+                            <li>Enter your feedback text</li>
+                            <li>Optionally provide your email address</li>
+                            <li>Tap "Submit Feedback" to save your feedback</li>
+                            <li>You can view all your feedback by tapping "View All Feedback"</li>
+                            <li>Export feedback by tapping "Export All" to share it</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>⚙️ App Settings & Permissions</h3>
+                    <div class="step-content">
+                        <h4>Required Permissions:</h4>
+                        <ul>
+                            <li><strong>Notifications:</strong> Essential for medication reminders</li>
+                            <li><strong>Exact Alarms (Android):</strong> Required for reliable alarm scheduling</li>
+                            <li><strong>Internet:</strong> Needed for smart light integration (optional)</li>
+                            <li><strong>Background Processing:</strong> Allows alarms to trigger even when app is closed</li>
+                        </ul>
+                        <h4>Recommended Settings:</h4>
+                        <ul>
+                            <li>Disable battery optimization for MedicationRunner</li>
+                            <li>Allow the app to run in the background</li>
+                            <li>Enable "Do Not Disturb" bypass for alarm notifications (optional)</li>
+                            <li>Keep the app updated to the latest version</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>🔧 Troubleshooting</h3>
+                    <div class="step-content">
+                        <h4>Alarms Not Triggering:</h4>
+                        <ul>
+                            <li>Check that notification permissions are granted</li>
+                            <li>Verify that battery optimization is disabled for the app</li>
+                            <li>Ensure alarms are enabled (check the alarm toggle in medication details)</li>
+                            <li>On Android, check if "Exact Alarms" permission is granted in device settings</li>
+                            <li>Make sure the device is not in "Do Not Disturb" mode (or allow app bypass)</li>
+                        </ul>
+                        <h4>Smart Lights Not Appearing:</h4>
+                        <ul>
+                            <li>Ensure your lights are connected to your Tuya account</li>
+                            <li>Check that your device and lights are on the same network</li>
+                            <li>Verify Tuya API credentials are correct</li>
+                            <li>Try refreshing the lights list</li>
+                        </ul>
+                        <h4>Pill Count Not Updating:</h4>
+                        <ul>
+                            <li>Make sure you're using the "Take Pill" or "Refill" buttons</li>
+                            <li>Check that the medication exists and has a valid pill count</li>
+                            <li>Try refreshing the medications list</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="instruction-step">
+                    <h3>📞 Support</h3>
+                    <div class="step-content">
+                        <p>If you encounter any issues or have questions:</p>
+                        <ul>
+                            <li>Submit feedback through the app's Feedback tab</li>
+                            <li>Check the troubleshooting section above</li>
+                            <li>Ensure you're using the latest version of the app</li>
+                            <li>Review the app permissions in your device settings</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feedback Section -->
+        <section id="feedback" class="section">
+            <div class="content-card">
+                <h2>📝 User Feedback</h2>
+                <p>View feedback submitted by users of the MedicationRunner app.</p>
+
+                <div class="feedback-controls">
+                    <div class="upload-section">
+                        <h3>Import Feedback Data</h3>
+                        <p>Export feedback from the app (using "Export All" button) and upload the text file here to view it on the website.</p>
+                        <input type="file" id="feedbackFileInput" accept=".txt,.json" onchange="handleFileUpload(event)">
+                        <button class="upload-button" onclick="document.getElementById('feedbackFileInput').click()">
+                            📁 Choose File
+                        </button>
+                        <button class="clear-button" onclick="clearFeedback()">Clear Display</button>
+                    </div>
+
+                    <div class="stats-section" id="statsSection" style="display: none;">
+                        <h3>Feedback Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="totalFeedback">0</div>
+                                <div class="stat-label">Total Feedback</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="averageRating">0.0</div>
+                                <div class="stat-label">Average Rating</div>
+                            </div>
+                        </div>
+                        <div class="ratings-breakdown" id="ratingsBreakdown"></div>
+                    </div>
+                </div>
+
+                <div class="feedback-list" id="feedbackList">
+                    <div class="empty-state">
+                        <p>📤 No feedback data loaded.</p>
+                        <p>Export feedback from the app and upload it here to view.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>MedicationRunner © 2024 | Medication Management Made Easy</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
