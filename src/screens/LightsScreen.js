@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import SmartLightService from '../services/SmartLightService';
+import LightNameService from '../services/LightNameService';
 
 export default function LightsScreen({ navigation }) {
   const [lights, setLights] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const lightNameService = LightNameService.getInstance();
 
   useEffect(() => {
     loadLights();
@@ -20,7 +22,17 @@ export default function LightsScreen({ navigation }) {
       if (error) {
         console.warn('Error loading lights:', error);
       } else {
-        setLights(loadedLights);
+        // Merge custom names with API names
+        const lightsWithCustomNames = await Promise.all(
+          loadedLights.map(async (light) => {
+            const customName = await lightNameService.getDisplayName(light.id, light.name);
+            return {
+              ...light,
+              displayName: customName,
+            };
+          })
+        );
+        setLights(lightsWithCustomNames);
       }
     } catch (error) {
       console.error('Error loading lights:', error);
@@ -53,7 +65,7 @@ export default function LightsScreen({ navigation }) {
                 onPress={() => navigation.navigate('LightDetail', { light })}
               >
                 <View style={styles.lightHeader}>
-                  <Text style={styles.lightName}>{light.name}</Text>
+                  <Text style={styles.lightName}>{light.displayName || light.name}</Text>
                   <View style={[styles.statusIndicator, { backgroundColor: light.isOnline ? '#4CAF50' : '#F44336' }]} />
                 </View>
                 <Text style={styles.lightDetails}>
@@ -132,7 +144,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   lightName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
     flex: 1,

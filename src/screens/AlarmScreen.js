@@ -97,6 +97,59 @@ const AlarmScreen = ({ route, navigation }) => {
     }
   };
 
+  const handleSnooze = async () => {
+    try {
+      // Stop the alarm sound temporarily
+      await stopAlarmSound();
+
+      // Schedule a new notification for 5 minutes later
+      const snoozeMinutes = 5;
+      const snoozeTime = new Date();
+      snoozeTime.setMinutes(snoozeTime.getMinutes() + snoozeMinutes);
+
+      if (medicationId && alarmId) {
+        try {
+          const notificationContent = {
+            title: `TAKE MEDICATION NOW - ${medicationName || 'Medication'}`,
+            body: 'Snoozed alarm - Take your medication immediately!',
+            sound: true,
+            data: {
+              medicationId: medicationId,
+              alarmId: alarmId,
+              alarmTime: alarmTime,
+              medicationName: medicationName || 'Medication',
+            },
+            categoryIdentifier: 'alarm',
+          };
+
+          if (Platform.OS === 'android') {
+            notificationContent.channelId = 'alarms';
+            notificationContent.vibrate = [0, 250, 250, 250];
+          } else if (Platform.OS === 'ios') {
+            notificationContent.interruptionLevel = 'critical';
+          }
+
+          await Notifications.scheduleNotificationAsync({
+            content: notificationContent,
+            trigger: {
+              seconds: snoozeMinutes * 60,
+            },
+          });
+
+          console.log(`⏰ Alarm snoozed for ${snoozeMinutes} minutes`);
+        } catch (notificationError) {
+          console.error('Error scheduling snooze notification:', notificationError);
+        }
+      }
+
+      // Navigate back (alarm will ring again in 5 minutes)
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error snoozing alarm:', error);
+      navigation.goBack();
+    }
+  };
+
   const handleTurnOff = async () => {
     try {
       // Stop the alarm sound
@@ -180,7 +233,7 @@ const AlarmScreen = ({ route, navigation }) => {
           <Text style={styles.alarmIconText}>!</Text>
         </View>
         
-        <Text style={styles.title}>Take Your Medication</Text>
+        <Text style={styles.title}>TAKE MEDICATION NOW</Text>
         
         {medicationName && (
           <Text style={styles.medicationName}>{medicationName}</Text>
@@ -190,15 +243,24 @@ const AlarmScreen = ({ route, navigation }) => {
           <Text style={styles.alarmTime}>Scheduled for {formatTime(alarmTime)}</Text>
         )}
 
-        <Text style={styles.instruction}>Please take your medication now</Text>
+        <Text style={styles.instruction}>TAKE YOUR MEDICATION IMMEDIATELY</Text>
 
-        <TouchableOpacity 
-          style={styles.turnOffButton} 
-          onPress={handleTurnOff}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.turnOffButtonText}>I took the medication</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={styles.snoozeButton} 
+            onPress={handleSnooze}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.snoozeButtonText}>Snooze (5 min)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.turnOffButton} 
+            onPress={handleTurnOff}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.turnOffButtonText}>I took the medication</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -207,7 +269,7 @@ const AlarmScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#007bff',
+    backgroundColor: '#dc3545',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -217,9 +279,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 30,
+    padding: 40,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 450,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -227,50 +289,86 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   alarmIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#ffc107',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#dc3545',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
+    shadowColor: '#dc3545',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
   alarmIconText: {
-    fontSize: 50,
+    fontSize: 80,
+    fontWeight: '900',
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#212529',
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#dc3545',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   medicationName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#007bff',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   alarmTime: {
-    fontSize: 18,
+    fontSize: 22,
     color: '#6c757d',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
+    fontWeight: '600',
   },
   instruction: {
-    fontSize: 16,
-    color: '#495057',
+    fontSize: 24,
+    color: '#dc3545',
     textAlign: 'center',
-    marginBottom: 30,
-    fontStyle: 'italic',
+    marginBottom: 35,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 15,
+    marginTop: 10,
+  },
+  snoozeButton: {
+    backgroundColor: '#ffc107',
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 30,
+    flex: 1,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  snoozeButtonText: {
+    color: '#212529',
+    fontSize: 20,
+    fontWeight: '700',
   },
   turnOffButton: {
     backgroundColor: '#dc3545',
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    minWidth: 200,
+    paddingVertical: 18,
+    paddingHorizontal: 30,
+    flex: 1,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -280,7 +378,7 @@ const styles = StyleSheet.create({
   },
   turnOffButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
   },
 });

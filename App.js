@@ -22,6 +22,8 @@ import LightDetailScreen from './src/screens/LightDetailScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
+import FeedbackScreen from './src/screens/FeedbackScreen';
+import ViewFeedbackScreen from './src/screens/ViewFeedbackScreen';
 import SwipeableTabWrapper from './src/components/SwipeableTabWrapper';
 
 const Stack = createStackNavigator();
@@ -299,6 +301,22 @@ export default function App() {
                   animationEnabled: true,
                 }}
               />
+              <Stack.Screen 
+                name="ViewFeedback" 
+                component={ViewFeedbackScreen}
+                options={{
+                  presentation: 'card',
+                  headerShown: true,
+                  title: 'View Feedback',
+                  headerStyle: {
+                    backgroundColor: '#007bff',
+                  },
+                  headerTintColor: '#fff',
+                  headerTitleStyle: {
+                    fontWeight: '700',
+                  },
+                }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
           <StatusBar style="auto" />
@@ -429,6 +447,19 @@ function MainTabs({ lights, alarmService }) {
                   tabBarIcon: () => <Text style={styles.tabIcon}>L</Text>
                 }}
               />
+              <Tab.Screen 
+                name="Feedback" 
+                options={{ 
+                  tabBarLabel: 'Feedback',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>F</Text>
+                }}
+              >
+                {props => (
+                  <SwipeableTabWrapper>
+                    <FeedbackScreen {...props} />
+                  </SwipeableTabWrapper>
+                )}
+              </Tab.Screen>
             </Tab.Navigator>
   );
 }

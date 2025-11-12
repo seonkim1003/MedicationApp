@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, TextInput, Modal, Pressable } from 'react-native';
 import Slider from '@react-native-community/slider';
 import SmartLightService from '../services/SmartLightService';
+import LightNameService from '../services/LightNameService';
 import Toast from 'react-native-toast-message';
 
 export default function LightDetailScreen({ route, navigation }) {
@@ -11,6 +12,10 @@ export default function LightDetailScreen({ route, navigation }) {
   const [brightness, setBrightness] = useState(initialLight.brightness);
   const [color, setColor] = useState(initialLight.color);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [displayName, setDisplayName] = useState(initialLight.name);
+  const [isRenameModalVisible, setIsRenameModalVisible] = useState(false);
+  const [newName, setNewName] = useState('');
+  const lightNameService = LightNameService.getInstance();
 
   const smartLightService = SmartLightService.getInstance();
 
@@ -22,12 +27,26 @@ export default function LightDetailScreen({ route, navigation }) {
   ];
 
   useEffect(() => {
+    // Load custom name on mount
+    loadDisplayName();
+    
     // Refresh light state when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
       refreshLight();
+      loadDisplayName();
     });
     return unsubscribe;
   }, [navigation]);
+
+  const loadDisplayName = async () => {
+    try {
+      const customName = await lightNameService.getDisplayName(light.id, light.name);
+      setDisplayName(customName);
+    } catch (error) {
+      console.error('Error loading display name:', error);
+      setDisplayName(light.name);
+    }
+  };
 
   const refreshLight = async () => {
     try {
@@ -38,10 +57,46 @@ export default function LightDetailScreen({ route, navigation }) {
         setIsOn(updatedLight.isOn);
         setBrightness(updatedLight.brightness);
         setColor(updatedLight.color);
+        // Reload display name in case it changed
+        await loadDisplayName();
       }
     } catch (error) {
       console.error('Error refreshing light:', error);
     }
+  };
+
+  const handleRename = async () => {
+    try {
+      if (newName.trim()) {
+        await lightNameService.setCustomName(light.id, newName.trim());
+        setDisplayName(newName.trim());
+        setIsRenameModalVisible(false);
+        setNewName('');
+        Toast.show({
+          type: 'success',
+          text1: 'Name Updated',
+          text2: `Light renamed to ${newName.trim()}`,
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Invalid Name',
+          text2: 'Please enter a valid name',
+        });
+      }
+    } catch (error) {
+      console.error('Error renaming light:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to rename light',
+      });
+    }
+  };
+
+  const openRenameModal = () => {
+    setNewName(displayName);
+    setIsRenameModalVisible(true);
   };
 
   const handlePowerToggle = async (value) => {
@@ -143,7 +198,15 @@ export default function LightDetailScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>{light.name}</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{displayName}</Text>
+          <TouchableOpacity 
+            style={styles.renameButton}
+            onPress={openRenameModal}
+          >
+            <Text style={styles.renameButtonText}>✏️ Rename</Text>
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Status</Text>
@@ -216,6 +279,47 @@ export default function LightDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Rename Modal */}
+      <Modal
+        visible={isRenameModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsRenameModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsRenameModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Rename Light</Text>
+              <Text style={styles.modalSubtitle}>Enter a custom name (e.g., Bedroom, Bathroom, Kitchen)</Text>
+              
+              <Text style={styles.label}>Light Name</Text>
+              <TextInput
+                placeholder="Enter light name"
+                value={newName}
+                onChangeText={setNewName}
+                style={styles.input}
+                autoFocus={true}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={[styles.button, styles.secondaryButton]} 
+                  onPress={() => setIsRenameModalVisible(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.button} 
+                  onPress={handleRename}
+                >
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -231,12 +335,87 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
+    flex: 1,
+    color: '#2c3e50',
+    marginRight: 10,
+  },
+  renameButton: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  renameButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6c757d',
     textAlign: 'center',
     marginBottom: 20,
-    color: '#2c3e50',
+  },
+  label: {
+    fontSize: 14,
+    color: '#34495e',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  input: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1.5,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 20,
+    fontSize: 16,
+    color: '#212529',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 10,
+  },
+  secondaryButton: {
+    backgroundColor: '#6c757d',
   },
   section: {
     backgroundColor: 'white',

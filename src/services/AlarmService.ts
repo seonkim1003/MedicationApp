@@ -196,8 +196,8 @@ class AlarmService {
 
         // Schedule as a recurring weekly alarm with sound
         const notificationContent: any = {
-          title: `Time to take ${medication.name}`,
-          body: `Don't forget your medication!`,
+          title: `TAKE MEDICATION NOW - ${medication.name}`,
+          body: `TAKE YOUR MEDICATION IMMEDIATELY!`,
           sound: true, // Play default alarm sound
           data: {
             medicationId: medication.id,
@@ -399,8 +399,8 @@ class AlarmService {
     try {
       console.log('Testing notification...');
       const notificationContent: any = {
-        title: `Time to take ${medicationName}`,
-        body: `Test alarm notification`,
+        title: `TAKE MEDICATION NOW - ${medicationName}`,
+        body: `TAKE YOUR MEDICATION IMMEDIATELY!`,
         sound: true,
         data: {
           medicationId: 'test',

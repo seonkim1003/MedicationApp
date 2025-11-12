@@ -120,25 +120,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   timeText: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700',
     color: '#212529',
     textAlign: 'center',
   },
   labelText: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#6c757d',
     textAlign: 'center',
     marginTop: 4,
+    fontWeight: '600',
   },
   noAlarmText: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#6c757d',
     textAlign: 'center',
+    fontWeight: '600',
   },
 });
 
 export default CircularTimer;
+
 
 
 

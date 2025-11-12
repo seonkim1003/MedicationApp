@@ -5,6 +5,7 @@ import { Medication, MedicationAlarm, DAYS_OF_WEEK } from '../types';
 import MedicationManager from '../services/MedicationManager';
 import AlarmService from '../services/AlarmService';
 import HistoryService from '../services/HistoryService';
+import LightNameService from '../services/LightNameService';
 import Toast from 'react-native-toast-message';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -12,6 +13,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export default function MedicationsScreen({ lights, alarmService }) {
   const [medications, setMedications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lightsWithCustomNames, setLightsWithCustomNames] = useState([]);
+  const lightNameService = LightNameService.getInstance();
 
   // Add Medication Modal state
   const [isAddVisible, setIsAddVisible] = useState(false);
@@ -45,7 +48,26 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
   React.useEffect(() => {
     loadMedications();
-  }, []);
+    loadLightsWithCustomNames();
+  }, [lights]);
+
+  const loadLightsWithCustomNames = async () => {
+    try {
+      const lightsWithNames = await Promise.all(
+        lights.map(async (light) => {
+          const customName = await lightNameService.getDisplayName(light.id, light.name);
+          return {
+            ...light,
+            displayName: customName,
+          };
+        })
+      );
+      setLightsWithCustomNames(lightsWithNames);
+    } catch (error) {
+      console.error('Error loading lights with custom names:', error);
+      setLightsWithCustomNames(lights);
+    }
+  };
 
   const loadMedications = async () => {
     try {
@@ -577,7 +599,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                     }
                   });
                   
-                  const connectedLights = lights.filter(light => allLightIds.has(light.id));
+                  const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
                   
                   return (
                     <View style={styles.connectedLightsContainer}>
@@ -588,7 +610,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                         <View style={styles.connectedLightsList}>
                           {connectedLights.map(light => (
                             <View key={light.id} style={styles.connectedLightChip}>
-                              <Text style={styles.connectedLightChipText}>{light.name}</Text>
+                              <Text style={styles.connectedLightChipText}>{light.displayName || light.name}</Text>
                             </View>
                           ))}
                         </View>
@@ -836,10 +858,10 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
                 <Text style={styles.label}>Available Lights</Text>
                 <View style={styles.lightsRow}>
-                  {lights.length === 0 ? (
+                  {lightsWithCustomNames.length === 0 ? (
                     <Text style={styles.emptyText}>No lights available. Go to Lights tab to add lights.</Text>
                   ) : (
-                    lights.map((l) => (
+                    lightsWithCustomNames.map((l) => (
                       <TouchableOpacity
                         key={l.id}
                         style={[styles.lightChip, selectedLightIds.includes(l.id) ? styles.lightChipSelected : null]}
@@ -849,7 +871,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                           styles.lightChipText,
                           selectedLightIds.includes(l.id) && styles.lightChipTextSelected
                         ]}>
-                          {l.name}
+                          {l.displayName || l.name}
                         </Text>
                       </TouchableOpacity>
                     ))
@@ -1009,7 +1031,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   title: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
@@ -1062,7 +1084,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   medicationName: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '600',
     color: '#212529',
     flex: 1,
@@ -1100,7 +1122,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   alarmTime: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
     color: '#212529',
     letterSpacing: 0.5,

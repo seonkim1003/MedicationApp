@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
@@ -412,15 +412,16 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   quickStatValue: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#3498db',
     marginBottom: 5,
   },
   quickStatLabel: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#7f8c8d',
     textAlign: 'center',
+    fontWeight: '600',
   },
   section: {
     backgroundColor: 'white',
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
     color: '#856404',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 15,
     color: '#2c3e50',
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   timeText: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
   },
@@ -491,7 +492,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   medicationName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600',
     color: '#34495e',
     marginBottom: 6,
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
   },
