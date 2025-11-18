@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 // Import services
 import SmartLightService from './src/services/SmartLightService';
 import AlarmService from './src/services/AlarmService';
+import { initializeFirebase } from './src/services/firebase';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -190,6 +191,15 @@ export default function App() {
     try {
       console.log('Initializing MedicationRunner App...');
       setIsLoading(true);
+
+      // Initialize Firebase
+      try {
+        initializeFirebase();
+        console.log('Firebase initialized');
+      } catch (error) {
+        console.warn('Firebase initialization failed:', error);
+        // Continue app initialization even if Firebase fails
+      }
 
       // Initialize services
       const smartLightService = SmartLightService.getInstance();
