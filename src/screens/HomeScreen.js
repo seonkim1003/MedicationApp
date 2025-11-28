@@ -17,6 +17,8 @@ export default function HomeScreen({ navigation }) {
   const [lowPillCount, setLowPillCount] = useState([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [nextAlarmTime, setNextAlarmTime] = useState(null);
+  const [yesterdayStatus, setYesterdayStatus] = useState({ total: 0, taken: 0, missed: 0 });
+  const [todayStatus, setTodayStatus] = useState({ total: 0, taken: 0, remaining: 0, missed: 0 });
 
   useEffect(() => {
     loadDashboard();
@@ -119,6 +121,149 @@ export default function HomeScreen({ navigation }) {
       if (stats.length > 0) {
         const bestStreak = Math.max(...stats.map(s => s.currentStreak));
         setCurrentStreak(bestStreak);
+      }
+
+      // Calculate yesterday and today adherence
+      try {
+        const yesterday = moment().subtract(1, 'day');
+        const yesterdayDayOfWeek = yesterday.day() === 0 ? 7 : yesterday.day();
+        const todayDayOfWeek = today.day() === 0 ? 7 : today.day();
+        
+        const allHistory = await historyService.loadHistory();
+        
+        // Yesterday's status
+        const yesterdayAlarms = [];
+        medications.forEach(med => {
+          const medAlarms = allAlarms.filter(a => 
+            a.medicationId === med.id && 
+            a.isEnabled &&
+            a.daysOfWeek.includes(yesterdayDayOfWeek)
+          );
+          medAlarms.forEach(alarm => {
+            yesterdayAlarms.push({
+              ...alarm,
+              medication: med,
+            });
+          });
+        });
+        
+        const yesterdayTaken = yesterdayAlarms.filter(alarm => {
+          try {
+            const alarmTime = moment(alarm.time, 'HH:mm');
+            if (!alarmTime.isValid()) return false;
+            const alarmDate = yesterday.clone().set({
+              hour: alarmTime.hour(),
+              minute: alarmTime.minute(),
+            });
+            return allHistory.some(h => {
+              try {
+                const historyDate = moment(h.takenAt);
+                if (!historyDate.isValid()) return false;
+                const isSameDay = historyDate.isSame(alarmDate, 'day');
+                const timeDiff = Math.abs(historyDate.diff(alarmDate, 'minutes'));
+                const matchesMedication = h.medicationId === alarm.medicationId;
+                const matchesAlarm = alarm.id && h.alarmId ? h.alarmId === alarm.id : true;
+                return matchesMedication && isSameDay && timeDiff <= 60 && matchesAlarm;
+              } catch (e) {
+                return false;
+              }
+            });
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        setYesterdayStatus({
+          total: yesterdayAlarms.length,
+          taken: yesterdayTaken.length,
+          missed: Math.max(0, yesterdayAlarms.length - yesterdayTaken.length),
+        });
+
+        // Today's status
+        const todayAlarms = todayMeds;
+        const now = moment();
+        const todayTaken = todayAlarms.filter(alarm => {
+          try {
+            const alarmTime = moment(alarm.time, 'HH:mm');
+            if (!alarmTime.isValid()) return false;
+            const todayAlarm = moment(now).set({
+              hour: alarmTime.hour(),
+              minute: alarmTime.minute(),
+            });
+            return allHistory.some(h => {
+              try {
+                const historyDate = moment(h.takenAt);
+                if (!historyDate.isValid()) return false;
+                const isSameDay = historyDate.isSame(todayAlarm, 'day');
+                const timeDiff = Math.abs(historyDate.diff(todayAlarm, 'minutes'));
+                const matchesMedication = h.medicationId === alarm.medicationId;
+                const matchesAlarm = alarm.id && h.alarmId ? h.alarmId === alarm.id : true;
+                return matchesMedication && isSameDay && timeDiff <= 60 && matchesAlarm;
+              } catch (e) {
+                return false;
+              }
+            });
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        // Calculate remaining: medications scheduled for later today (future alarms)
+        const todayRemaining = todayAlarms.filter(alarm => {
+          try {
+            const alarmTime = moment(alarm.time, 'HH:mm');
+            if (!alarmTime.isValid()) return false;
+            const todayAlarm = moment(now).set({
+              hour: alarmTime.hour(),
+              minute: alarmTime.minute(),
+            });
+            // Only count future alarms (not yet due)
+            return todayAlarm.isAfter(now);
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        // Calculate missed: medications that were due today but not taken
+        const todayMissed = todayAlarms.filter(alarm => {
+          try {
+            const alarmTime = moment(alarm.time, 'HH:mm');
+            if (!alarmTime.isValid()) return false;
+            const todayAlarm = moment(now).set({
+              hour: alarmTime.hour(),
+              minute: alarmTime.minute(),
+            });
+            const isPast = todayAlarm.isBefore(now);
+            const notTaken = !allHistory.some(h => {
+              try {
+                const historyDate = moment(h.takenAt);
+                if (!historyDate.isValid()) return false;
+                const isSameDay = historyDate.isSame(todayAlarm, 'day');
+                const timeDiff = Math.abs(historyDate.diff(todayAlarm, 'minutes'));
+                const matchesMedication = h.medicationId === alarm.medicationId;
+                const matchesAlarm = alarm.id && h.alarmId ? h.alarmId === alarm.id : true;
+                return matchesMedication && isSameDay && timeDiff <= 60 && matchesAlarm;
+              } catch (e) {
+                return false;
+              }
+            });
+            return isPast && notTaken;
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        setTodayStatus({
+          total: todayAlarms.length,
+          taken: todayTaken.length,
+          remaining: todayRemaining.length,
+          missed: todayMissed.length,
+        });
+      } catch (adherenceError) {
+        console.error('Error calculating adherence:', adherenceError);
+        // Set default values if calculation fails
+        setYesterdayStatus({ total: 0, taken: 0, missed: 0 });
+        setTodayStatus({ total: 0, taken: 0, remaining: 0, missed: 0 });
       }
 
     } catch (error) {
@@ -263,6 +408,103 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.quickStatCard}>
             <Text style={styles.quickStatValue}>{currentStreak}</Text>
             <Text style={styles.quickStatLabel}>Day Streak</Text>
+          </View>
+        </View>
+
+        {/* Medication Adherence Status */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📊 Medication Status</Text>
+          
+          {/* Yesterday's Status */}
+          <View style={styles.adherenceCard}>
+            <View style={styles.adherenceHeader}>
+              <Text style={styles.adherenceDayTitle}>Yesterday</Text>
+              {yesterdayStatus.total > 0 && (
+                <View style={[
+                  styles.adherenceBadge,
+                  yesterdayStatus.missed === 0 ? styles.adherenceBadgeSuccess : styles.adherenceBadgeWarning
+                ]}>
+                  <Text style={styles.adherenceBadgeText}>
+                    {yesterdayStatus.missed === 0 ? '✓ All Taken' : `${yesterdayStatus.missed} Missed`}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {yesterdayStatus.total > 0 ? (
+              <View style={styles.adherenceStats}>
+                <View style={styles.adherenceStatItem}>
+                  <Text style={styles.adherenceStatValue}>{yesterdayStatus.taken}</Text>
+                  <Text style={styles.adherenceStatLabel}>Taken</Text>
+                </View>
+                <View style={styles.adherenceStatItem}>
+                  <Text style={[styles.adherenceStatValue, styles.adherenceStatValueMissed]}>
+                    {yesterdayStatus.missed}
+                  </Text>
+                  <Text style={styles.adherenceStatLabel}>Missed</Text>
+                </View>
+                <View style={styles.adherenceStatItem}>
+                  <Text style={styles.adherenceStatValue}>{yesterdayStatus.total}</Text>
+                  <Text style={styles.adherenceStatLabel}>Total</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.adherenceEmptyText}>No medications scheduled yesterday</Text>
+            )}
+          </View>
+
+          {/* Today's Status */}
+          <View style={[styles.adherenceCard, styles.adherenceCardToday]}>
+            <View style={styles.adherenceHeader}>
+              <Text style={styles.adherenceDayTitle}>Today</Text>
+              {todayStatus.total > 0 && (
+                <View style={[
+                  styles.adherenceBadge,
+                  todayStatus.missed === 0 && todayStatus.remaining === 0
+                    ? styles.adherenceBadgeSuccess 
+                    : todayStatus.missed > 0
+                    ? styles.adherenceBadgeWarning
+                    : styles.adherenceBadgeInfo
+                ]}>
+                  <Text style={styles.adherenceBadgeText}>
+                    {todayStatus.missed === 0 && todayStatus.remaining === 0
+                      ? '✓ All Done'
+                      : todayStatus.missed > 0
+                      ? `${todayStatus.missed} Missed`
+                      : `${todayStatus.remaining} Remaining`}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {todayStatus.total > 0 ? (
+              <View style={styles.adherenceStats}>
+                <View style={styles.adherenceStatItem}>
+                  <Text style={styles.adherenceStatValue}>{todayStatus.taken}</Text>
+                  <Text style={styles.adherenceStatLabel}>Taken</Text>
+                </View>
+                {todayStatus.missed > 0 && (
+                  <View style={styles.adherenceStatItem}>
+                    <Text style={[styles.adherenceStatValue, styles.adherenceStatValueMissed]}>
+                      {todayStatus.missed}
+                    </Text>
+                    <Text style={styles.adherenceStatLabel}>Missed</Text>
+                  </View>
+                )}
+                {todayStatus.remaining > 0 && (
+                  <View style={styles.adherenceStatItem}>
+                    <Text style={[styles.adherenceStatValue, styles.adherenceStatValueRemaining]}>
+                      {todayStatus.remaining}
+                    </Text>
+                    <Text style={styles.adherenceStatLabel}>Remaining</Text>
+                  </View>
+                )}
+                <View style={styles.adherenceStatItem}>
+                  <Text style={styles.adherenceStatValue}>{todayStatus.total}</Text>
+                  <Text style={styles.adherenceStatLabel}>Total</Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.adherenceEmptyText}>No medications scheduled today</Text>
+            )}
           </View>
         </View>
 
@@ -504,6 +746,84 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  adherenceCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3498db',
+  },
+  adherenceCardToday: {
+    backgroundColor: '#e7f3ff',
+    borderLeftColor: '#007bff',
+  },
+  adherenceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  adherenceDayTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  adherenceBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  adherenceBadgeSuccess: {
+    backgroundColor: '#2ecc71',
+  },
+  adherenceBadgeWarning: {
+    backgroundColor: '#f39c12',
+  },
+  adherenceBadgeInfo: {
+    backgroundColor: '#3498db',
+  },
+  adherenceBadgeText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  adherenceStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  adherenceStatItem: {
+    alignItems: 'center',
+  },
+  adherenceStatValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2ecc71',
+    marginBottom: 4,
+  },
+  adherenceStatValueMissed: {
+    color: '#e74c3c',
+  },
+  adherenceStatValueRemaining: {
+    color: '#3498db',
+  },
+  adherenceStatLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '600',
+  },
+  adherenceEmptyText: {
+    fontSize: 15,
+    color: '#95a5a6',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 8,
   },
 });
 

@@ -25,6 +25,10 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [pillCount, setPillCount] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState(null);
 
+  // Edit Medication Modal state
+  const [isEditVisible, setIsEditVisible] = useState(false);
+  const [selectedMedicationForEdit, setSelectedMedicationForEdit] = useState(null);
+
   // Connect Lights Modal state
   const [isConnectLightsVisible, setIsConnectLightsVisible] = useState(false);
   const [selectedMedicationForLights, setSelectedMedicationForLights] = useState(null);
@@ -127,6 +131,14 @@ export default function MedicationsScreen({ lights, alarmService }) {
     setPillCount('');
     setSelectedGroupId(null);
     setIsAddVisible(true);
+  };
+
+  const openEditMedication = (medication) => {
+    setSelectedMedicationForEdit(medication);
+    setMedName(medication.name);
+    setPillCount(medication.pillCount.toString());
+    setSelectedGroupId(medication.groupId || null);
+    setIsEditVisible(true);
   };
 
   const openCreateGroup = () => {
@@ -460,6 +472,43 @@ export default function MedicationsScreen({ lights, alarmService }) {
     } catch (e) {
       console.error('Add medication error:', e);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to add medication' });
+    }
+  };
+
+  const updateMedication = async () => {
+    try {
+      if (!selectedMedicationForEdit) {
+        Toast.show({ type: 'error', text1: 'Error', text2: 'No medication selected' });
+        return;
+      }
+
+      const nameTrim = medName.trim();
+      if (!nameTrim) {
+        Toast.show({ type: 'error', text1: 'Name required', text2: 'Please enter a medication name' });
+        return;
+      }
+
+      const count = Number.parseInt(pillCount, 10);
+      const medicationManager = MedicationManager.getInstance();
+      const updatedMed = {
+        ...selectedMedicationForEdit,
+        name: nameTrim,
+        displayName: nameTrim,
+        genericName: nameTrim,
+        pillCount: Number.isNaN(count) ? 0 : count,
+        groupId: selectedGroupId || undefined,
+        updatedAt: new Date().toISOString()
+      };
+
+      await medicationManager.updateMedication(updatedMed);
+      await loadMedications();
+      setIsEditVisible(false);
+      setSelectedMedicationForEdit(null);
+      setSelectedGroupId(null);
+      Toast.show({ type: 'success', text1: 'Medication Updated' });
+    } catch (e) {
+      console.error('Update medication error:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update medication' });
     }
   };
 
@@ -798,6 +847,12 @@ export default function MedicationsScreen({ lights, alarmService }) {
         <Text style={styles.medicationName}>{medication.name}</Text>
         <View style={styles.medicationHeaderButtons}>
           <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => openEditMedication(medication)}
+          >
+            <Text style={styles.editButtonText}>✏️ Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
             style={styles.addAlarmButton}
             onPress={() => openAddAlarm(medication)}
           >
@@ -989,6 +1044,85 @@ export default function MedicationsScreen({ lights, alarmService }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Edit Medication Modal */}
+      <Modal
+        visible={isEditVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsEditVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsEditVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContainer}>
+              <ScrollView 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
+                <Text style={styles.modalTitle}>Edit Medication</Text>
+
+                <Text style={styles.label}>Medication Name</Text>
+                <TextInput
+                  placeholder="Enter medication name (e.g., Aspirin, Vitamin D)"
+                  value={medName}
+                  onChangeText={setMedName}
+                  style={styles.input}
+                />
+
+                <Text style={styles.label}>Amount of Pills</Text>
+                <TextInput
+                  placeholder="Enter number of pills you have"
+                  keyboardType="numeric"
+                  value={pillCount}
+                  onChangeText={setPillCount}
+                  style={styles.input}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+
+                <Text style={styles.label}>Group (Optional)</Text>
+                <View style={styles.groupSelectionContainer}>
+                  <TouchableOpacity
+                    style={[styles.groupOption, !selectedGroupId && styles.groupOptionSelected]}
+                    onPress={() => setSelectedGroupId(null)}
+                  >
+                    <Text style={[styles.groupOptionText, !selectedGroupId && styles.groupOptionTextSelected]}>
+                      None (Ungrouped)
+                    </Text>
+                  </TouchableOpacity>
+                  {groups.map(group => (
+                    <TouchableOpacity
+                      key={group.id}
+                      style={[styles.groupOption, selectedGroupId === group.id && styles.groupOptionSelected]}
+                      onPress={() => setSelectedGroupId(group.id)}
+                    >
+                      <View style={[styles.groupColorDot, { backgroundColor: group.color || '#3498db' }]} />
+                      <Text style={[styles.groupOptionText, selectedGroupId === group.id && styles.groupOptionTextSelected]}>
+                        {group.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => {
+                    setIsEditVisible(false);
+                    setSelectedMedicationForEdit(null);
+                  }}>
+                    <Text style={styles.buttonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.button} onPress={updateMedication}>
+                    <Text style={styles.buttonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Add Medication Modal */}
       <Modal
@@ -1875,6 +2009,24 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: '#6c757d',
     shadowColor: '#6c757d',
+  },
+  editButton: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  editButtonText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
   },
   addAlarmButton: {
     backgroundColor: '#28a745',

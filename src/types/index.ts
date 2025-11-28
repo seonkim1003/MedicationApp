@@ -120,6 +120,7 @@ export interface MedicationHistory {
   takenAt: string; // ISO timestamp
   alarmId?: string; // Optional: which alarm this was for
   wasOnTime: boolean; // Whether taken within 30 minutes of alarm
+  note?: string; // Optional: note about symptoms or other observations
 }
 
 // Adherence Statistics

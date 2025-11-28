@@ -7,6 +7,7 @@ const TUYA_CONFIG = {
   BASE_URL: 'https://openapi.tuyaus.com',
   ACCESS_ID: 'asf4xfpnfxuc3kpgkfkn',
   ACCESS_SECRET: '2bb6eb3bf50d47c3bfd727d168cfbb49',
+  PROJECT_CODE: 'p1760488081408794mmg', // Project Code for reference
   DEVICE_IDS: [
     'eb0620af64cf53f1dfu4hy',  // KHSUIN(7x24 Service Online) 4
     'eb0d6f535fa9a1fd42ngda',  // KHSUIN(7x24 Service Online)
@@ -33,6 +34,21 @@ class SmartLightService {
       SmartLightService.instance = new SmartLightService();
     }
     return SmartLightService.instance;
+  }
+
+  // Clear cached token to force fresh authentication
+  public clearTokenCache(): void {
+    console.log('🔄 Clearing token cache for fresh authentication...');
+    this.accessToken = null;
+    this.tokenExpiry = 0;
+    this.userUid = null;
+  }
+
+  // Force reload light discovery with fresh authentication
+  public async reloadLightDiscovery(): Promise<{ lights: SmartLight[], error: string | null }> {
+    console.log('🔄 Forcing light discovery reload...');
+    this.clearTokenCache();
+    return await this.getSmartLights();
   }
 
   // Get access token using OAuth

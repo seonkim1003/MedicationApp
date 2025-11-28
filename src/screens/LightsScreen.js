@@ -15,10 +15,14 @@ export default function LightsScreen({ navigation }) {
     return () => clearInterval(interval);
   }, []);
 
-  const loadLights = async () => {
+  const loadLights = async (forceReload = false) => {
     try {
+      setIsLoading(true);
       const smartLightService = SmartLightService.getInstance();
-      const { lights: loadedLights, error } = await smartLightService.getSmartLights();
+      // Use reloadLightDiscovery for forced refresh, otherwise use regular getSmartLights
+      const { lights: loadedLights, error } = forceReload 
+        ? await smartLightService.reloadLightDiscovery()
+        : await smartLightService.getSmartLights();
       if (error) {
         console.warn('Error loading lights:', error);
       } else {
@@ -80,8 +84,8 @@ export default function LightsScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
-          <TouchableOpacity style={styles.button} onPress={loadLights}>
-            <Text style={styles.buttonText}>Refresh Lights</Text>
+          <TouchableOpacity style={styles.button} onPress={() => loadLights(true)}>
+            <Text style={styles.buttonText}>🔄 Reload Light Discovery</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

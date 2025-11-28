@@ -20,11 +20,11 @@ import HomeScreen from './src/screens/HomeScreen';
 import MedicationsScreen from './src/screens/MedicationsScreen';
 import LightsScreen from './src/screens/LightsScreen';
 import LightDetailScreen from './src/screens/LightDetailScreen';
-import StatisticsScreen from './src/screens/StatisticsScreen';
-import CalendarScreen from './src/screens/CalendarScreen';
+import AdherenceScreen from './src/screens/AdherenceScreen';
 import AlarmScreen from './src/screens/AlarmScreen';
 import FeedbackScreen from './src/screens/FeedbackScreen';
 import ViewFeedbackScreen from './src/screens/ViewFeedbackScreen';
+import NotesScreen from './src/screens/NotesScreen';
 import SwipeableTabWrapper from './src/components/SwipeableTabWrapper';
 
 const Stack = createStackNavigator();
@@ -327,6 +327,22 @@ export default function App() {
                   },
                 }}
               />
+              <Stack.Screen 
+                name="Notes" 
+                component={NotesScreen}
+                options={{
+                  presentation: 'card',
+                  headerShown: true,
+                  title: 'Symptom Tracking & Notes',
+                  headerStyle: {
+                    backgroundColor: '#17a2b8',
+                  },
+                  headerTintColor: '#fff',
+                  headerTitleStyle: {
+                    fontWeight: '700',
+                  },
+                }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
           <StatusBar style="auto" />
@@ -424,28 +440,15 @@ function MainTabs({ lights, alarmService }) {
                 {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
               </Tab.Screen>
               <Tab.Screen 
-                name="Calendar" 
+                name="Adherence" 
                 options={{ 
-                  tabBarLabel: 'Calendar',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>C</Text>
+                  tabBarLabel: 'Adherence',
+                  tabBarIcon: () => <Text style={styles.tabIcon}>📊</Text>
                 }}
               >
                 {props => (
                   <SwipeableTabWrapper>
-                    <CalendarScreen {...props} />
-                  </SwipeableTabWrapper>
-                )}
-              </Tab.Screen>
-              <Tab.Screen 
-                name="Statistics" 
-                options={{ 
-                  tabBarLabel: 'Stats',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>S</Text>
-                }}
-              >
-                {props => (
-                  <SwipeableTabWrapper>
-                    <StatisticsScreen {...props} />
+                    <AdherenceScreen {...props} />
                   </SwipeableTabWrapper>
                 )}
               </Tab.Screen>

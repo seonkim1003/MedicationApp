@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
-const TAB_ROUTES = ['Home', 'Medications', 'Calendar', 'Statistics', 'Lights'];
+const TAB_ROUTES = ['Home', 'Medications', 'Adherence', 'Lights', 'Feedback'];
 const SWIPE_THRESHOLD = 50; // Minimum distance to trigger navigation
 
 export default function SwipeableTabWrapper({ children }) {
@@ -14,6 +14,7 @@ export default function SwipeableTabWrapper({ children }) {
   const getCurrentRouteName = () => {
     if (route.name === 'MedicationsList') return 'Medications';
     if (route.name === 'LightsList') return 'Lights';
+    if (route.name === 'Feedback') return 'Feedback';
     return route.name;
   };
 

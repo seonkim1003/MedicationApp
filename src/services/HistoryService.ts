@@ -49,7 +49,8 @@ class HistoryService {
     medicationId: string,
     medicationName: string,
     alarmId?: string,
-    alarmTime?: string
+    alarmTime?: string,
+    note?: string
   ): Promise<void> {
     try {
       const history = await this.loadHistory();
@@ -71,11 +72,12 @@ class HistoryService {
         takenAt: now.toISOString(),
         alarmId,
         wasOnTime,
+        note: note?.trim() || undefined,
       };
 
       history.push(newEntry);
       await this.saveHistory(history);
-      console.log(`✅ Recorded: ${medicationName} taken at ${now.toISOString()}`);
+      console.log(`✅ Recorded: ${medicationName} taken at ${now.toISOString()}${note ? ' with note' : ''}`);
     } catch (error) {
       console.error('❌ Error recording medication:', error);
       throw error;
