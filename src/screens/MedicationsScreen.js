@@ -57,6 +57,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [isAssignGroupModalVisible, setIsAssignGroupModalVisible] = useState(false);
   const [selectedMedicationForGroup, setSelectedMedicationForGroup] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({}); // Track which groups are expanded
+  const [expandedMedications, setExpandedMedications] = useState({}); // Track which medications are expanded
 
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -340,6 +341,17 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
   const isGroupExpanded = (groupId) => {
     return expandedGroups[groupId] === true;
+  };
+
+  const toggleMedicationExpansion = (medicationId) => {
+    setExpandedMedications(prev => ({
+      ...prev,
+      [medicationId]: !prev[medicationId],
+    }));
+  };
+
+  const isMedicationExpanded = (medicationId) => {
+    return expandedMedications[medicationId] === true;
   };
 
   const openConnectLights = (medication) => {
@@ -841,119 +853,135 @@ export default function MedicationsScreen({ lights, alarmService }) {
   }
 
   const { grouped, ungrouped } = organizeMedicationsByGroup();
-  const renderMedication = (medication) => (
-    <View key={medication.id} style={styles.medicationItem}>
-      <View style={styles.medicationHeader}>
-        <Text style={styles.medicationName}>{medication.name}</Text>
-        <View style={styles.medicationHeaderButtons}>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => openEditMedication(medication)}
-          >
-            <Text style={styles.editButtonText}>✏️ Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.addAlarmButton}
-            onPress={() => openAddAlarm(medication)}
-          >
-            <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.connectLightsButton}
-            onPress={() => openConnectLights(medication)}
-          >
-            <Text style={styles.connectLightsButtonText}>Light</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.groupButton}
-            onPress={() => openAssignGroup(medication)}
-          >
-            <Text style={styles.groupButtonText}>Group</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.deleteButton}
-            onPress={() => deleteMedication(medication.id)}
-          >
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <Text style={styles.medicationDetails}>
-        Pills: {medication.pillCount} | 
-        Alarms: {medication.alarms?.length || 0}
-        {medication.pillCount <= 5 && (
-          <Text style={styles.lowPillWarning}> - Low!</Text>
-        )}
-      </Text>
-      
-      {/* Connected Lights List - Always show beneath medication details */}
-      {(() => {
-        // Get all unique light IDs from all alarms for this medication
-        const allLightIds = new Set();
-        (medication.alarms || []).forEach(alarm => {
-          if (alarm.lightIds && alarm.lightIds.length > 0) {
-            alarm.lightIds.forEach(id => allLightIds.add(id));
-          }
-        });
-        
-        const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
-        
-        return (
-          <View style={styles.connectedLightsContainer}>
-            <Text style={styles.connectedLightsLabel}>
-              {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
-            </Text>
-            {connectedLights.length > 0 ? (
-              <View style={styles.connectedLightsList}>
-                {connectedLights.map(light => (
-                  <View key={light.id} style={styles.connectedLightChip}>
-                    <Text style={styles.connectedLightChipText}>{light.displayName || light.name}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
-            )}
+  const renderMedication = (medication) => {
+    const isExpanded = isMedicationExpanded(medication.id);
+    
+    return (
+      <View key={medication.id} style={styles.medicationItem}>
+        <TouchableOpacity 
+          style={styles.medicationHeader}
+          onPress={() => toggleMedicationExpansion(medication.id)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.medicationHeaderLeft}>
+            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+            <Text style={styles.medicationName}>{medication.name}</Text>
           </View>
-        );
-      })()}
-      
-      {(medication.alarms || []).map((alarm) => (
-        <View key={alarm.id} style={styles.alarmItem}>
-          <View style={styles.alarmHeader}>
-            <View style={styles.alarmHeaderLeft}>
-              <Text style={styles.alarmTime}>{alarm.time}</Text>
-              <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+        </TouchableOpacity>
+        
+        {isExpanded && (
+          <>
+            <View style={styles.medicationHeaderButtons}>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={() => openEditMedication(medication)}
+              >
+                <Text style={styles.editButtonText}>✏️ Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.addAlarmButton}
+                onPress={() => openAddAlarm(medication)}
+              >
+                <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.connectLightsButton}
+                onPress={() => openConnectLights(medication)}
+              >
+                <Text style={styles.connectLightsButtonText}>Light</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.groupButton}
+                onPress={() => openAssignGroup(medication)}
+              >
+                <Text style={styles.groupButtonText}>Group</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => deleteMedication(medication.id)}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.deleteAlarmButton}
-              onPress={() => deleteAlarm(alarm.id, medication.id)}
-            >
-              <Text style={styles.deleteAlarmButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.alarmDetails}>
-            Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
-          </Text>
-        </View>
-      ))}
-      
-      <View style={styles.pillButtonsContainer}>
-        <TouchableOpacity 
-          style={[styles.pillButton, styles.refillButton]}
-          onPress={() => openRefillModal(medication)}
-        >
-          <Text style={styles.pillButtonText}>Refill Pills</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.pillButton}
-          onPress={() => decreasePillCount(medication.id)}
-        >
-          <Text style={styles.pillButtonText}>Take Pill</Text>
-        </TouchableOpacity>
+            <Text style={styles.medicationDetails}>
+              Pills: {medication.pillCount} | 
+              Alarms: {medication.alarms?.length || 0}
+              {medication.pillCount <= 5 && (
+                <Text style={styles.lowPillWarning}> - Low!</Text>
+              )}
+            </Text>
+            
+            {/* Connected Lights List - Always show beneath medication details */}
+            {(() => {
+              // Get all unique light IDs from all alarms for this medication
+              const allLightIds = new Set();
+              (medication.alarms || []).forEach(alarm => {
+                if (alarm.lightIds && alarm.lightIds.length > 0) {
+                  alarm.lightIds.forEach(id => allLightIds.add(id));
+                }
+              });
+              
+              const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
+              
+              return (
+                <View style={styles.connectedLightsContainer}>
+                  <Text style={styles.connectedLightsLabel}>
+                    {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
+                  </Text>
+                  {connectedLights.length > 0 ? (
+                    <View style={styles.connectedLightsList}>
+                      {connectedLights.map(light => (
+                        <View key={light.id} style={styles.connectedLightChip}>
+                          <Text style={styles.connectedLightChipText}>{light.displayName || light.name}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
+                  )}
+                </View>
+              );
+            })()}
+            
+            {(medication.alarms || []).map((alarm) => (
+              <View key={alarm.id} style={styles.alarmItem}>
+                <View style={styles.alarmHeader}>
+                  <View style={styles.alarmHeaderLeft}>
+                    <Text style={styles.alarmTime}>{alarm.time}</Text>
+                    <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteAlarmButton}
+                    onPress={() => deleteAlarm(alarm.id, medication.id)}
+                  >
+                    <Text style={styles.deleteAlarmButtonText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.alarmDetails}>
+                  Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
+                </Text>
+              </View>
+            ))}
+            
+            <View style={styles.pillButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.pillButton, styles.refillButton]}
+                onPress={() => openRefillModal(medication)}
+              >
+                <Text style={styles.pillButtonText}>Refill Pills</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.pillButton}
+                onPress={() => decreasePillCount(medication.id)}
+              >
+                <Text style={styles.pillButtonText}>Take Pill</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -1133,12 +1161,13 @@ export default function MedicationsScreen({ lights, alarmService }) {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setIsAddVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContainer}>
+            <View style={styles.modalContainerFixed}>
               <ScrollView 
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
                 nestedScrollEnabled={true}
+                style={styles.modalScrollView}
               >
                 <Text style={styles.modalTitle}>Add Medication</Text>
 
@@ -1721,8 +1750,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   medicationHeader: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
+    paddingVertical: 8,
+  },
+  medicationHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   medicationHeaderButtons: {
     flexDirection: 'row',
@@ -1736,7 +1772,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#212529',
     letterSpacing: -0.3,
-    marginBottom: 6,
+    marginLeft: 8,
+    flex: 1,
   },
   medicationDetails: {
     fontSize: 16,
@@ -1910,8 +1947,25 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '90%',
     maxWidth: 450,
-          maxHeight: SCREEN_HEIGHT * 0.85,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     justifyContent: 'flex-start',
+    alignSelf: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    flexShrink: 1,
+  },
+  modalContainerFixed: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: 350,
+    height: SCREEN_HEIGHT * 0.6,
+    justifyContent: 'flex-start',
+    alignSelf: 'center',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1919,9 +1973,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  modalScrollView: {
+    flexShrink: 1,
+    maxHeight: SCREEN_HEIGHT * 0.85,
+  },
   modalScrollContent: {
     paddingBottom: 5,
     flexGrow: 0,
+    flexShrink: 1,
   },
   modalTitle: {
     fontSize: 24,
