@@ -42,7 +42,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
   const [alarmDate, setAlarmDate] = useState(new Date());
 
   const [is24Hour, setIs24Hour] = useState(false); // 12-hour format by default
-  const [alarmDays, setAlarmDays] = useState([1, 2, 3, 4, 5]);
+  const [alarmDays, setAlarmDays] = useState([]); // default to none selected
 
   // Refill Pills Modal state
   const [isRefillVisible, setIsRefillVisible] = useState(false);
@@ -131,6 +131,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
     setMedName('');
     setPillCount('');
     setSelectedGroupId(null);
+    setAlarmDays([]); // ensure days are cleared when starting fresh
     setIsAddVisible(true);
   };
 
@@ -388,7 +389,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
     setAlarmDate(defaultDate);
     setAlarmTime('08:00 AM');
     setIs24Hour(false); // Use 12-hour format by default
-    setAlarmDays([1, 2, 3, 4, 5]);
+    setAlarmDays([1, 2, 3, 4, 5, 6, 7]); // Default to all days selected
     setIsAlarmVisible(true);
   };
 
@@ -786,7 +787,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
     try {
       Alert.alert(
         'Delete Medication',
-        'Are you sure you want to delete this medication? This will also remove all associated alarms.',
+        'Are you sure you want to delete this medication? This will also remove all associated alarms, schedules, and notes.',
         [
           {
             text: 'Cancel',
@@ -798,13 +799,19 @@ export default function MedicationsScreen({ lights, alarmService }) {
             onPress: async () => {
               try {
                 const medicationManager = MedicationManager.getInstance();
+                const historyService = HistoryService.getInstance();
                 const allAlarms = await medicationManager.loadAlarms();
                 const medicationAlarms = allAlarms.filter(alarm => alarm.medicationId === medicationId);
                 
+                // Delete all alarms for this medication
                 for (const alarm of medicationAlarms) {
                   await medicationManager.deleteAlarm(alarm.id);
                 }
                 
+                // Delete all history entries (including notes) for this medication
+                await historyService.deleteMedicationHistory(medicationId);
+                
+                // Delete the medication itself
                 await medicationManager.deleteMedication(medicationId);
                 
                 if (alarmService) {
@@ -816,7 +823,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                 Toast.show({
                   type: 'success',
                   text1: 'Medication Deleted',
-                  text2: 'Medication and associated alarms removed',
+                  text2: 'Medication, alarms, schedules, and notes removed',
                 });
               } catch (error) {
                 console.error('Error deleting medication:', error);
@@ -1238,7 +1245,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setIsAlarmVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, styles.modalContainerCompact]}>
               <ScrollView 
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
@@ -2342,6 +2349,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     marginTop: -8,
+  },
+  modalContainerCompact: {
+    width: '85%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    alignItems: 'center',
   },
   lightChipTextSelected: {
     color: 'white',
