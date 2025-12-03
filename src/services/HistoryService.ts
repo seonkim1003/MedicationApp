@@ -261,6 +261,19 @@ class HistoryService {
     }
   }
 
+  // Delete history entries for a specific medication
+  async deleteMedicationHistory(medicationId: string): Promise<void> {
+    try {
+      const history = await this.loadHistory();
+      const filteredHistory = history.filter(h => h.medicationId !== medicationId);
+      await this.saveHistory(filteredHistory);
+      console.log(`✅ Deleted history for medication: ${medicationId}`);
+    } catch (error) {
+      console.error('❌ Error deleting medication history:', error);
+      throw error;
+    }
+  }
+
   // Clear all medication history
   async clearHistory(): Promise<void> {
     try {

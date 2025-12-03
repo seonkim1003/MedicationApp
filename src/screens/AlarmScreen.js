@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView, Image, Dimensions, Animated } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Notifications from 'expo-notifications';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
+import FavoritePicturesService from '../services/FavoritePicturesService';
 import Toast from 'react-native-toast-message';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const AlarmScreen = ({ route, navigation }) => {
   const { medicationId, alarmId, medicationName, alarmTime } = route.params || {};
@@ -12,7 +15,11 @@ const AlarmScreen = ({ route, navigation }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
+  const [randomPicture, setRandomPicture] = useState(null);
+  const [alarmMusicUri, setAlarmMusicUri] = useState(null);
   const soundRef = useRef(null);
+  const uiOpacity = useRef(new Animated.Value(0)).current;
+  const redOverlayOpacity = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     // Prevent gesture-based dismissal
@@ -23,7 +30,22 @@ const AlarmScreen = ({ route, navigation }) => {
   }, [navigation]);
 
   useEffect(() => {
-    playAlarmSound();
+    loadAlarmMusic();
+    loadRandomPicture();
+    
+    // Start fade-in animation
+    Animated.parallel([
+      Animated.timing(uiOpacity, {
+        toValue: 1,
+        duration: 15000, // 15 seconds to fade in UI (very slow)
+        useNativeDriver: true,
+      }),
+      Animated.timing(redOverlayOpacity, {
+        toValue: 1,
+        duration: 15000, // 15 seconds to fade in red overlay (very slow)
+        useNativeDriver: true,
+      }),
+    ]).start();
     
     // Prevent back button from dismissing the alarm on Android only
     let backHandler = null;
@@ -42,16 +64,40 @@ const AlarmScreen = ({ route, navigation }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (alarmMusicUri !== null) {
+      playAlarmSound();
+    }
+  }, [alarmMusicUri]);
+
+  const loadAlarmMusic = async () => {
+    try {
+      const medicationManager = MedicationManager.getInstance();
+      const uri = await medicationManager.loadAlarmMusicUri();
+      setAlarmMusicUri(uri);
+    } catch (error) {
+      console.error('Error loading alarm music:', error);
+      setAlarmMusicUri(null);
+    }
+  };
+
+  const loadRandomPicture = async () => {
+    try {
+      const service = FavoritePicturesService.getInstance();
+      const picture = await service.getRandomPicture();
+      setRandomPicture(picture);
+    } catch (error) {
+      console.error('Error loading random picture:', error);
+    }
+  };
+
   const playAlarmSound = async () => {
     try {
       // Set audio mode to allow playback even in silent mode (iOS-specific)
-      // Only set essential audio mode settings - notification system handles sound
       const audioModeConfig = {
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true, // Important: allows notifications to play in silent mode
         staysActiveInBackground: true,
-        // Note: interruptionModeIOS and interruptionModeAndroid are optional
-        // Only set them if constants are available
         ...(Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX !== undefined && {
           interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
         }),
@@ -64,24 +110,37 @@ const AlarmScreen = ({ route, navigation }) => {
 
       await Audio.setAudioModeAsync(audioModeConfig);
 
-      // The notification system already plays the alarm sound
-      // We mark as playing to show the screen is active
-      // Optionally, you can add a bundled alarm sound file here:
-      // const { sound: alarmSound } = await Audio.Sound.createAsync(
-      //   require('../assets/alarm.mp3'),
-      //   { shouldPlay: true, isLooping: true, volume: 1.0 }
-      // );
-      
-      setIsPlaying(true);
-      
-      // Note: The notification sound is already handled by the AlarmService
-      // The notification system will play the sound when the alarm triggers
-      // This screen is displayed when the alarm notification is received
+      // Play alarm music/sound that loops
+      if (!alarmMusicUri) {
+        console.log('No alarm music configured, skipping music playback');
+        setIsPlaying(true);
+        return;
+      }
+
+      try {
+        const { sound: alarmSound } = await Audio.Sound.createAsync(
+          { uri: alarmMusicUri },
+          { 
+            shouldPlay: true, 
+            isLooping: true, 
+            volume: 1.0,
+            rate: 1.0,
+          }
+        );
+        
+        soundRef.current = alarmSound;
+        setSound(alarmSound);
+        setIsPlaying(true);
+        console.log('✅ Alarm music started playing:', alarmMusicUri);
+      } catch (musicError) {
+        console.warn('Could not load music file, continuing without music:', musicError);
+        // Continue without music - notification sound will still play
+        setIsPlaying(true);
+      }
       
     } catch (error) {
       console.error('Error setting up alarm sound:', error);
       // Still show the alarm screen even if sound setup fails
-      // The notification system will still play its sound
       setIsPlaying(true);
     }
   };
@@ -94,6 +153,7 @@ const AlarmScreen = ({ route, navigation }) => {
         soundRef.current = null;
         setSound(null);
         setIsPlaying(false);
+        console.log('✅ Alarm music stopped');
       }
     } catch (error) {
       console.error('Error stopping alarm sound:', error);
@@ -284,12 +344,37 @@ const AlarmScreen = ({ route, navigation }) => {
     }
   };
 
+  const backgroundSource = randomPicture ? { uri: randomPicture.uri } : null;
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
+      {backgroundSource ? (
+        <Image
+          source={backgroundSource}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+          blurRadius={1}
+          onError={() => setRandomPicture(null)}
+        />
+      ) : (
+        <View style={styles.fallbackBackground} />
+      )}
+      <Animated.View 
+        style={[
+          styles.backgroundOverlay,
+          { opacity: redOverlayOpacity }
+        ]} 
+      />
+      <Animated.View 
+        style={[
+          styles.uiContainer,
+          { opacity: uiOpacity }
+        ]}
+      >
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -380,6 +465,7 @@ const AlarmScreen = ({ route, navigation }) => {
           </View>
         </View>
       </ScrollView>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 };
@@ -387,41 +473,75 @@ const AlarmScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#dc3545',
+    backgroundColor: '#000',
+    position: 'relative',
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    backgroundColor: '#a30000',
+  },
+  fallbackBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    backgroundColor: '#a30000',
+  },
+  backgroundOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(163, 0, 0, 0.7)',
+  },
+  uiContainer: {
+    flex: 1,
+    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 0,
   },
   content: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     borderRadius: 20,
-    padding: 32,
+    padding: 24,
     width: '100%',
-    maxWidth: 480,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    maxWidth: 500,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   alarmIcon: {
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: '#dc3545',
+    backgroundColor: 'rgba(220, 53, 69, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
-    shadowColor: '#dc3545',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 10,
   },
   alarmIconSmall: {
     width: 80,
@@ -432,7 +552,7 @@ const styles = StyleSheet.create({
   alarmIconText: {
     fontSize: 96,
     fontWeight: '900',
-    color: 'white',
+    color: '#fff',
   },
   alarmIconTextSmall: {
     fontSize: 48,
@@ -440,7 +560,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 40,
     fontWeight: '900',
-    color: '#dc3545',
+    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 20,
     letterSpacing: 1.5,
@@ -453,7 +573,7 @@ const styles = StyleSheet.create({
   medicationName: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#007bff',
+    color: '#f8f9fa',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -463,7 +583,7 @@ const styles = StyleSheet.create({
   },
   alarmTime: {
     fontSize: 26,
-    color: '#6c757d',
+    color: '#e9ecef',
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '600',
@@ -474,7 +594,7 @@ const styles = StyleSheet.create({
   },
   instruction: {
     fontSize: 28,
-    color: '#dc3545',
+    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 32,
     fontWeight: '800',
@@ -545,50 +665,50 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   noteToggleButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     borderStyle: 'dashed',
   },
   noteToggleText: {
-    color: '#495057',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
   noteInputContainer: {
     marginTop: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 10,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   noteLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#495057',
+    color: '#f8f9fa',
     marginBottom: 8,
   },
   noteInput: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#212529',
+    color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ced4da',
+    borderColor: 'rgba(255,255,255,0.2)',
     minHeight: 150,
     maxHeight: 200,
     textAlignVertical: 'top',
   },
   noteCharCount: {
     fontSize: 12,
-    color: '#6c757d',
+    color: '#e9ecef',
     textAlign: 'right',
     marginTop: 4,
   },

@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   ALARM_SETTINGS: 'alarm_settings',
   NOTIFICATION_SETTINGS: 'notification_settings',
   SMART_LIGHTS: 'smart_lights',
+  ALARM_MUSIC: 'alarm_music_uri',
 };
 
 class MedicationManager {
@@ -273,6 +274,32 @@ class MedicationManager {
         lightEnabled: true,
         persistentNotification: true
       };
+    }
+  }
+
+  // Alarm Music Management
+  async saveAlarmMusicUri(uri: string | null): Promise<void> {
+    try {
+      if (uri) {
+        await AsyncStorage.setItem(STORAGE_KEYS.ALARM_MUSIC, uri);
+        console.log('Alarm music URI saved');
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEYS.ALARM_MUSIC);
+        console.log('Alarm music URI removed');
+      }
+    } catch (error) {
+      console.error('Error saving alarm music URI:', error);
+      throw error;
+    }
+  }
+
+  async loadAlarmMusicUri(): Promise<string | null> {
+    try {
+      const uri = await AsyncStorage.getItem(STORAGE_KEYS.ALARM_MUSIC);
+      return uri;
+    } catch (error) {
+      console.error('Error loading alarm music URI:', error);
+      return null;
     }
   }
 

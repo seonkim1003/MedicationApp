@@ -144,3 +144,10 @@ export interface RefillReminder {
   threshold: number; // Alert when pills <= threshold
   isActive: boolean;
 }
+
+// Favorite Picture
+export interface FavoritePicture {
+  id: string;
+  uri: string;
+  createdAt: string;
+}
