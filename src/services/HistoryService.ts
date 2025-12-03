@@ -23,9 +23,9 @@ class HistoryService {
     try {
       const jsonString = JSON.stringify(history);
       await AsyncStorage.setItem(STORAGE_KEYS.HISTORY, jsonString);
-      console.log('📝 History saved:', history.length, 'items');
+      console.log('History saved:', history.length, 'items');
     } catch (error) {
-      console.error('❌ Error saving history:', error);
+      console.error('Error saving history:', error);
       throw error;
     }
   }
@@ -39,7 +39,7 @@ class HistoryService {
       }
       return JSON.parse(jsonString) as MedicationHistory[];
     } catch (error) {
-      console.error('❌ Error loading history:', error);
+      console.error('Error loading history:', error);
       return [];
     }
   }
@@ -77,9 +77,9 @@ class HistoryService {
 
       history.push(newEntry);
       await this.saveHistory(history);
-      console.log(`✅ Recorded: ${medicationName} taken at ${now.toISOString()}${note ? ' with note' : ''}`);
+      console.log(`Recorded: ${medicationName} taken at ${now.toISOString()}${note ? ' with note' : ''}`);
     } catch (error) {
-      console.error('❌ Error recording medication:', error);
+      console.error('Error recording medication:', error);
       throw error;
     }
   }
@@ -90,7 +90,7 @@ class HistoryService {
       const history = await this.loadHistory();
       return history.filter(h => h.medicationId === medicationId);
     } catch (error) {
-      console.error('❌ Error getting medication history:', error);
+      console.error('Error getting medication history:', error);
       return [];
     }
   }
@@ -102,7 +102,7 @@ class HistoryService {
       const cutoffDate = moment().subtract(days, 'days');
       return history.filter(h => moment(h.takenAt).isAfter(cutoffDate));
     } catch (error) {
-      console.error('❌ Error getting recent history:', error);
+      console.error('Error getting recent history:', error);
       return [];
     }
   }
@@ -228,7 +228,7 @@ class HistoryService {
         missedDays,
       };
     } catch (error) {
-      console.error('❌ Error calculating adherence:', error);
+      console.error('Error calculating adherence:', error);
       return {
         medicationId: medication.id,
         medicationName: medication.name,
@@ -256,7 +256,7 @@ class HistoryService {
       );
       return stats;
     } catch (error) {
-      console.error('❌ Error getting all adherence stats:', error);
+      console.error('Error getting all adherence stats:', error);
       return [];
     }
   }
@@ -267,9 +267,9 @@ class HistoryService {
       const history = await this.loadHistory();
       const filteredHistory = history.filter(h => h.medicationId !== medicationId);
       await this.saveHistory(filteredHistory);
-      console.log(`✅ Deleted history for medication: ${medicationId}`);
+      console.log(`Deleted history for medication: ${medicationId}`);
     } catch (error) {
-      console.error('❌ Error deleting medication history:', error);
+      console.error('Error deleting medication history:', error);
       throw error;
     }
   }
@@ -278,9 +278,9 @@ class HistoryService {
   async clearHistory(): Promise<void> {
     try {
       await AsyncStorage.removeItem(STORAGE_KEYS.HISTORY);
-      console.log('✅ Medication history cleared');
+      console.log('Medication history cleared');
     } catch (error) {
-      console.error('❌ Error clearing history:', error);
+      console.error('Error clearing history:', error);
       throw error;
     }
   }

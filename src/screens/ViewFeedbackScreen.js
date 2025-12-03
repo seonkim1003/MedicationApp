@@ -236,7 +236,7 @@ ${feedbackText}
                     style={styles.deleteButton}
                     onPress={() => handleDelete(item.id)}
                   >
-                    <Text style={styles.deleteButtonText}>✕</Text>
+                    <Text style={styles.deleteButtonText}>X</Text>
                   </TouchableOpacity>
                 </View>
                 {item.email && (

@@ -224,7 +224,7 @@ export default function AdherenceScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📊 Medication Adherence</Text>
+        <Text style={styles.title}>Medication Adherence</Text>
 
         {/* Overall Status Card */}
         <View style={[styles.statusCard, { borderLeftColor: adherenceColor }]}>
@@ -329,7 +329,7 @@ export default function AdherenceScreen() {
                       <Text style={styles.scheduleTime}>{item.time}</Text>
                       {item.isTaken ? (
                         <View style={styles.takenBadge}>
-                          <Text style={styles.takenBadgeText}>✓ Taken</Text>
+                          <Text style={styles.takenBadgeText}>Taken</Text>
                         </View>
                       ) : (
                         <View style={styles.missedBadge}>
@@ -395,7 +395,7 @@ export default function AdherenceScreen() {
             style={styles.notesButton}
             onPress={() => navigation.navigate('Notes')}
           >
-            <Text style={styles.notesButtonText}>📝 View All Notes & Symptom Tracking</Text>
+            <Text style={styles.notesButtonText}>View All Notes & Symptom Tracking</Text>
             <Text style={styles.notesButtonSubtext}>
               {history.filter(h => h.note && h.note.trim().length > 0).length} notes available
             </Text>

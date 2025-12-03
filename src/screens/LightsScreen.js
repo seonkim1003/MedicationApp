@@ -56,7 +56,7 @@ export default function LightsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>💡 Smart Lights</Text>
+        <Text style={styles.title}>Smart Lights</Text>
 
         <View style={styles.section}>
           {lights.length === 0 ? (
@@ -73,7 +73,7 @@ export default function LightsScreen({ navigation }) {
                   <View style={[styles.statusIndicator, { backgroundColor: light.isOnline ? '#4CAF50' : '#F44336' }]} />
                 </View>
                 <Text style={styles.lightDetails}>
-                  Status: {light.isOnline ? '🟢 Online' : '🔴 Offline'} | 
+                  Status: {light.isOnline ? 'Online' : 'Offline'} | 
                   Power: {light.isOn ? 'ON' : 'OFF'} | 
                   Brightness: {light.brightness}%
                 </Text>
@@ -85,7 +85,7 @@ export default function LightsScreen({ navigation }) {
 
         <View style={styles.section}>
           <TouchableOpacity style={styles.button} onPress={() => loadLights(true)}>
-            <Text style={styles.buttonText}>🔄 Reload Light Discovery</Text>
+            <Text style={styles.buttonText}>Reload Light Discovery</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

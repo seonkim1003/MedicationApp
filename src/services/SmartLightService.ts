@@ -38,7 +38,7 @@ class SmartLightService {
 
   // Clear cached token to force fresh authentication
   public clearTokenCache(): void {
-    console.log('🔄 Clearing token cache for fresh authentication...');
+    console.log('Clearing token cache for fresh authentication...');
     this.accessToken = null;
     this.tokenExpiry = 0;
     this.userUid = null;
@@ -46,7 +46,7 @@ class SmartLightService {
 
   // Force reload light discovery with fresh authentication
   public async reloadLightDiscovery(): Promise<{ lights: SmartLight[], error: string | null }> {
-    console.log('🔄 Forcing light discovery reload...');
+    console.log('Forcing light discovery reload...');
     this.clearTokenCache();
     return await this.getSmartLights();
   }
@@ -55,11 +55,11 @@ class SmartLightService {
   async getAccessToken(): Promise<string | null> {
     try {
       if (this.accessToken && Date.now() < this.tokenExpiry) {
-        console.log('🔑 Using cached access token');
+        console.log('Using cached access token');
         return this.accessToken;
       }
 
-      console.log('🔑 Requesting new access token...');
+      console.log('Requesting new access token...');
 
       const timestamp = Date.now().toString();
       const nonce = '';
@@ -76,8 +76,8 @@ class SmartLightService {
 
       const fullUrl = `${TUYA_CONFIG.BASE_URL}${url}`;
 
-      console.log(`🔑 Token request URL: ${fullUrl}`);
-      console.log(`🔑 Signature: ${signature.substring(0, 20)}...`);
+      console.log(`Token request URL: ${fullUrl}`);
+      console.log(`Signature: ${signature.substring(0, 20)}...`);
 
       const response = await axios.get(fullUrl, {
         headers: {
@@ -89,7 +89,7 @@ class SmartLightService {
         }
       });
 
-      console.log(`🔑 Token Response: ${response.status}`);
+      console.log(`Token Response: ${response.status}`);
 
       if (response.status === 200) {
         const data = response.data;
@@ -102,24 +102,24 @@ class SmartLightService {
           const expiresIn = result.expire_time;
           this.tokenExpiry = Date.now() + (expiresIn * 1000);
 
-          console.log('✅ Token obtained successfully!');
-          console.log(`🔑 Token: ${this.accessToken?.substring(0, 15)}...`);
-          console.log(`🔑 User UID: ${this.userUid}`);
+          console.log('Token obtained successfully!');
+          console.log(`Token: ${this.accessToken?.substring(0, 15)}...`);
+          console.log(`User UID: ${this.userUid}`);
           return this.accessToken;
         } else {
           const errorMsg = data.msg || data.errorMsg || 'Unknown error';
           const errorCode = data.code || 'N/A';
-          console.error('❌ Token request failed:');
-          console.error(`❌ Error Code: ${errorCode}`);
-          console.error(`❌ Error Message: ${errorMsg}`);
+          console.error('Token request failed:');
+          console.error(`Error Code: ${errorCode}`);
+          console.error(`Error Message: ${errorMsg}`);
         }
       } else {
-        console.error('❌ HTTP Error:', response.status);
+        console.error('HTTP Error:', response.status);
       }
 
       return null;
     } catch (error) {
-      console.error('❌ Error getting access token:', error);
+      console.error('Error getting access token:', error);
       return null;
     }
   }
@@ -127,16 +127,16 @@ class SmartLightService {
   // Get all smart lights
   async getSmartLights(): Promise<{ lights: SmartLight[], error: string | null }> {
     try {
-      console.log('💡 Starting smart light discovery...');
+      console.log('Starting smart light discovery...');
 
       const token = await this.getAccessToken();
       if (!token) {
         const error = 'Failed to get access token. Check API credentials.';
-        console.error('❌ Authentication failed');
+        console.error('Authentication failed');
         return { lights: [], error };
       }
 
-      console.log('✅ Authentication successful!');
+      console.log('Authentication successful!');
 
       const lights: SmartLight[] = [];
       let successCount = 0;
@@ -146,31 +146,31 @@ class SmartLightService {
       for (let index = 0; index < TUYA_CONFIG.DEVICE_IDS.length; index++) {
         const deviceId = TUYA_CONFIG.DEVICE_IDS[index];
         try {
-          console.log(`🔍 Fetching device ${index + 1}/${TUYA_CONFIG.DEVICE_IDS.length}: ${deviceId}`);
+          console.log(`Fetching device ${index + 1}/${TUYA_CONFIG.DEVICE_IDS.length}: ${deviceId}`);
 
           const deviceInfo = await this.getDeviceInfo(token, deviceId);
           if (deviceInfo) {
             lights.push(deviceInfo);
             successCount++;
-            console.log(`✅ Successfully loaded: ${deviceInfo.name}`);
+            console.log(`Successfully loaded: ${deviceInfo.name}`);
           } else {
             errorCount++;
-            console.warn(`⚠️ Failed to load device: ${deviceId}`);
+            console.warn(`Failed to load device: ${deviceId}`);
           }
         } catch (error) {
           errorCount++;
-          console.error(`❌ Exception loading device ${deviceId}:`, error);
+          console.error(`Exception loading device ${deviceId}:`, error);
         }
       }
 
-      console.log(`📊 Results: ${successCount} successful, ${errorCount} failed`);
+      console.log(`Results: ${successCount} successful, ${errorCount} failed`);
 
       if (lights.length > 0) {
-        console.log('✅ Smart light discovery successful!');
+        console.log('Smart light discovery successful!');
         return { lights, error: null };
       } else {
         const error = `Failed to load any devices. All ${TUYA_CONFIG.DEVICE_IDS.length} devices failed to load.`;
-        console.error('❌ Smart light discovery failed');
+        console.error('Smart light discovery failed');
         return { lights: [], error };
       }
     } catch (error) {
@@ -183,7 +183,7 @@ class SmartLightService {
   // Get individual device information
   private async getDeviceInfo(token: string, deviceId: string): Promise<SmartLight | null> {
     try {
-      console.log(`📡 Requesting device info for: ${deviceId}`);
+      console.log(`Requesting device info for: ${deviceId}`);
 
       const endpoint = `/v1.0/iot-03/devices/${deviceId}`;
       const url = `${TUYA_CONFIG.BASE_URL}${endpoint}`;
@@ -210,7 +210,7 @@ class SmartLightService {
         }
       });
 
-      console.log(`📡 HTTP Status: ${response.status}`);
+      console.log(`HTTP Status: ${response.status}`);
 
       if (response.status === 200) {
         const data = response.data;
@@ -223,7 +223,7 @@ class SmartLightService {
             const online = result.online || false;
             const category = result.category || 'unknown';
 
-            console.log(`📱 Device: ${name} (${online ? '🟢 Online' : '🔴 Offline'})`);
+            console.log(`Device: ${name} (${online ? 'Online' : 'Offline'})`);
 
             // Parse device status
             const status = result.status;
@@ -272,15 +272,15 @@ class SmartLightService {
         } else {
           const errorMsg = data.msg || 'Unknown error';
           const errorCode = data.code || 'N/A';
-          console.warn(`⚠️ API Error: ${errorCode} - ${errorMsg}`);
+          console.warn(`API Error: ${errorCode} - ${errorMsg}`);
         }
       } else {
-        console.warn(`⚠️ HTTP Error: ${response.status}`);
+        console.warn(`HTTP Error: ${response.status}`);
       }
 
       return null;
     } catch (error) {
-      console.error(`❌ Exception: ${error}`);
+      console.error(`Exception: ${error}`);
       return null;
     }
   }
@@ -288,11 +288,11 @@ class SmartLightService {
   // Control device power
   async setDevicePower(deviceId: string, isOn: boolean): Promise<boolean> {
     try {
-      console.log(`💡 Controlling device power: ${deviceId} -> ${isOn ? 'ON' : 'OFF'}`);
+      console.log(`Controlling device power: ${deviceId} -> ${isOn ? 'ON' : 'OFF'}`);
 
       const token = await this.getAccessToken();
       if (!token) {
-        console.error('❌ No access token available');
+        console.error('No access token available');
         return false;
       }
 
@@ -333,26 +333,26 @@ class SmartLightService {
         }
       });
 
-      console.log(`📡 Response: ${response.status}`);
+      console.log(`Response: ${response.status}`);
 
       if (response.status === 200) {
         const data = response.data;
         const success = data.success || false;
 
         if (success) {
-          console.log('✅ Device power control successful!');
+          console.log('Device power control successful!');
         } else {
-          console.error(`❌ Device power control failed: ${data.msg || 'Unknown error'}`);
+          console.error(`Device power control failed: ${data.msg || 'Unknown error'}`);
         }
 
         return success;
       } else {
-        console.error(`❌ HTTP Error: ${response.status}`);
+        console.error(`HTTP Error: ${response.status}`);
       }
 
       return false;
     } catch (error) {
-      console.error('❌ Exception controlling device power:', error);
+      console.error('Exception controlling device power:', error);
       return false;
     }
   }
@@ -364,7 +364,7 @@ class SmartLightService {
 
       const token = await this.getAccessToken();
       if (!token) {
-        console.error('❌ No access token available');
+        console.error('No access token available');
         return false;
       }
 
@@ -410,26 +410,26 @@ class SmartLightService {
         }
       });
 
-      console.log(`📡 Response: ${response.status}`);
+      console.log(`Response: ${response.status}`);
 
       if (response.status === 200) {
         const data = response.data;
         const success = data.success || false;
 
         if (success) {
-          console.log('✅ Device brightness control successful!');
+          console.log('Device brightness control successful!');
         } else {
-          console.error(`❌ Device brightness control failed: ${data.msg || 'Unknown error'}`);
+          console.error(`Device brightness control failed: ${data.msg || 'Unknown error'}`);
         }
 
         return success;
       } else {
-        console.error(`❌ HTTP Error: ${response.status}`);
+        console.error(`HTTP Error: ${response.status}`);
       }
 
       return false;
     } catch (error) {
-      console.error('❌ Exception controlling device brightness:', error);
+      console.error('Exception controlling device brightness:', error);
       return false;
     }
   }
@@ -437,11 +437,11 @@ class SmartLightService {
   // Set device color
   async setDeviceColor(deviceId: string, colorHex: string): Promise<boolean> {
     try {
-      console.log(`🎨 Controlling device color: ${deviceId} -> ${colorHex}`);
+      console.log(`Controlling device color: ${deviceId} -> ${colorHex}`);
 
       const token = await this.getAccessToken();
       if (!token) {
-        console.error('❌ No access token available');
+        console.error('No access token available');
         return false;
       }
 
@@ -455,7 +455,7 @@ class SmartLightService {
         v: Math.max(0, Math.min(1000, hsv[2] * 10)) // Value: 0-1000
       };
 
-      console.log(`🎨 Color conversion: ${colorHex} -> HSV(${hsv[0]}, ${hsv[1]}, ${hsv[2]}) -> Tuya(${tuyaHsv.h}, ${tuyaHsv.s}, ${tuyaHsv.v})`);
+      console.log(`Color conversion: ${colorHex} -> HSV(${hsv[0]}, ${hsv[1]}, ${hsv[2]}) -> Tuya(${tuyaHsv.h}, ${tuyaHsv.s}, ${tuyaHsv.v})`);
 
       // Use correct Tuya DP codes for KHSUIN bulbs
       const commands = {
@@ -492,26 +492,26 @@ class SmartLightService {
         }
       });
 
-      console.log(`📡 Response: ${response.status}`);
+      console.log(`Response: ${response.status}`);
 
       if (response.status === 200) {
         const data = response.data;
         const success = data.success || false;
 
         if (success) {
-          console.log('✅ Device color control successful!');
+          console.log('Device color control successful!');
         } else {
-          console.error(`❌ Device color control failed: ${data.msg || 'Unknown error'}`);
+          console.error(`Device color control failed: ${data.msg || 'Unknown error'}`);
         }
 
         return success;
       } else {
-        console.error(`❌ HTTP Error: ${response.status}`);
+        console.error(`HTTP Error: ${response.status}`);
       }
 
       return false;
     } catch (error) {
-      console.error('❌ Exception controlling device color:', error);
+      console.error('Exception controlling device color:', error);
       return false;
     }
   }
@@ -519,7 +519,7 @@ class SmartLightService {
   // Flash light for medication reminder
   async flashLight(deviceId: string, duration: number = 5000): Promise<boolean> {
     try {
-      console.log(`⚡ Flashing light: ${deviceId} for ${duration}ms`);
+      console.log(`Flashing light: ${deviceId} for ${duration}ms`);
 
       // Turn on light
       await this.setDevicePower(deviceId, true);
@@ -534,10 +534,10 @@ class SmartLightService {
       // Turn off light
       await this.setDevicePower(deviceId, false);
 
-      console.log(`✅ Light flashed for ${duration}ms`);
+      console.log(`Light flashed for ${duration}ms`);
       return true;
     } catch (error) {
-      console.error(`❌ Error flashing light: ${error}`);
+      console.error(`Error flashing light: ${error}`);
       return false;
     }
   }

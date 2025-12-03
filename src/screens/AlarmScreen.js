@@ -131,7 +131,7 @@ const AlarmScreen = ({ route, navigation }) => {
         soundRef.current = alarmSound;
         setSound(alarmSound);
         setIsPlaying(true);
-        console.log('✅ Alarm music started playing:', alarmMusicUri);
+        console.log('Alarm music started playing:', alarmMusicUri);
       } catch (musicError) {
         console.warn('Could not load music file, continuing without music:', musicError);
         // Continue without music - notification sound will still play
@@ -153,7 +153,7 @@ const AlarmScreen = ({ route, navigation }) => {
         soundRef.current = null;
         setSound(null);
         setIsPlaying(false);
-        console.log('✅ Alarm music stopped');
+        console.log('Alarm music stopped');
       }
     } catch (error) {
       console.error('Error stopping alarm sound:', error);
@@ -199,7 +199,7 @@ const AlarmScreen = ({ route, navigation }) => {
             },
           });
 
-          console.log(`⏰ Alarm snoozed for ${snoozeMinutes} minutes`);
+          console.log(`Alarm snoozed for ${snoozeMinutes} minutes`);
         } catch (notificationError) {
           console.error('Error scheduling snooze notification:', notificationError);
         }
@@ -252,7 +252,7 @@ const AlarmScreen = ({ route, navigation }) => {
             setNote('');
             setShowNoteInput(false);
             
-            console.log(`✅ Note added for ${medicationName || medication.name}`);
+            console.log(`Note added for ${medicationName || medication.name}`);
           }
         } catch (noteError) {
           console.error('Error saving note:', noteError);
@@ -294,9 +294,9 @@ const AlarmScreen = ({ route, navigation }) => {
                 alarmTime
               );
               
-              console.log(`✅ Medication taken from alarm: ${medicationName || medication.name}`);
+              console.log(`Medication taken from alarm: ${medicationName || medication.name}`);
             } else {
-              console.warn(`⚠️ Cannot decrease pill count for ${medicationName || medication.name}: already at 0`);
+              console.warn(`Cannot decrease pill count for ${medicationName || medication.name}: already at 0`);
             }
           }
         } catch (medicationError) {
@@ -411,7 +411,7 @@ const AlarmScreen = ({ route, navigation }) => {
               activeOpacity={0.7}
             >
               <Text style={styles.noteToggleText}>
-                {showNoteInput ? '✕ Hide Note' : '+ Add Note (Symptoms/Tracking)'}
+                {showNoteInput ? 'X Hide Note' : '+ Add Note (Symptoms/Tracking)'}
               </Text>
             </TouchableOpacity>
             

@@ -51,11 +51,11 @@ export default function NotesScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📝 Symptom Tracking & Notes</Text>
+        <Text style={styles.title}>Symptom Tracking & Notes</Text>
         
         {notes.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📝</Text>
+            <Text style={styles.emptyIcon}>Note</Text>
             <Text style={styles.emptyText}>No notes yet</Text>
             <Text style={styles.emptySubtext}>
               Add notes when taking medication to track symptoms and observations
@@ -101,7 +101,7 @@ export default function NotesScreen() {
                         entry.wasOnTime ? styles.statusBadgeOnTime : styles.statusBadgeLate
                       ]}>
                         <Text style={styles.statusBadgeText}>
-                          {entry.wasOnTime ? '✓ On Time' : '⚠ Late'}
+                          {entry.wasOnTime ? 'On Time' : 'Late'}
                         </Text>
                       </View>
                     </View>

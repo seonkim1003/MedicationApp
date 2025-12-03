@@ -76,7 +76,7 @@ export default function HistoryScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📝 Medication History</Text>
+        <Text style={styles.title}>Medication History</Text>
 
         {/* Filter Buttons */}
         <View style={styles.filterContainer}>
@@ -134,7 +134,7 @@ export default function HistoryScreen() {
                         entry.wasOnTime ? styles.statusBadgeOnTime : styles.statusBadgeLate
                       ]}>
                         <Text style={styles.statusText}>
-                          {entry.wasOnTime ? '✓ On Time' : '⚠ Late'}
+                          {entry.wasOnTime ? 'On Time' : 'Late'}
                         </Text>
                       </View>
                     </View>

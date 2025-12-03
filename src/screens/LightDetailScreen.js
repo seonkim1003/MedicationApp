@@ -204,7 +204,7 @@ export default function LightDetailScreen({ route, navigation }) {
             style={styles.renameButton}
             onPress={openRenameModal}
           >
-            <Text style={styles.renameButtonText}>✏️ Rename</Text>
+            <Text style={styles.renameButtonText}>Rename</Text>
           </TouchableOpacity>
         </View>
         
@@ -212,7 +212,7 @@ export default function LightDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Status</Text>
           <View style={styles.statusRow}>
             <Text style={styles.statusText}>
-              {light.isOnline ? '🟢 Online' : '🔴 Offline'}
+              {light.isOnline ? 'Online' : 'Offline'}
             </Text>
           </View>
         </View>

@@ -883,7 +883,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                 style={styles.editButton}
                 onPress={() => openEditMedication(medication)}
               >
-                <Text style={styles.editButtonText}>✏️ Edit</Text>
+                <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.addAlarmButton}
@@ -961,7 +961,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                     style={styles.deleteAlarmButton}
                     onPress={() => deleteAlarm(alarm.id, medication.id)}
                   >
-                    <Text style={styles.deleteAlarmButtonText}>✕</Text>
+                    <Text style={styles.deleteAlarmButtonText}>X</Text>
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.alarmDetails}>
@@ -1029,7 +1029,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                               openEditGroup(group);
                             }}
                           >
-                            <Text style={styles.editGroupButtonText}>✏️</Text>
+                            <Text style={styles.editGroupButtonText}>Edit</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
                             style={styles.deleteGroupButton}
@@ -1038,7 +1038,7 @@ export default function MedicationsScreen({ lights, alarmService }) {
                               deleteGroup(group.id);
                             }}
                           >
-                            <Text style={styles.deleteGroupButtonText}>✕</Text>
+                            <Text style={styles.deleteGroupButtonText}>X</Text>
                           </TouchableOpacity>
                         </View>
                       </TouchableOpacity>

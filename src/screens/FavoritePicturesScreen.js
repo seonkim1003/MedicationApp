@@ -192,7 +192,7 @@ export default function FavoritePicturesScreen() {
             onPress={loadRandomPicture}
             activeOpacity={0.8}
           >
-            <Text style={styles.refreshButtonText}>🔄 New Random</Text>
+            <Text style={styles.refreshButtonText}>New Random</Text>
           </TouchableOpacity>
         )}
       </View>

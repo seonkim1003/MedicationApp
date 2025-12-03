@@ -173,7 +173,7 @@ export default function CalendarScreen() {
                       <Text style={styles.scheduleTime}>{item.time}</Text>
                       {item.isTaken && (
                         <View style={styles.takenBadge}>
-                          <Text style={styles.takenBadgeText}>✓</Text>
+                          <Text style={styles.takenBadgeText}>T</Text>
                         </View>
                       )}
                     </View>

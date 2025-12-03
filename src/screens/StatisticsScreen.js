@@ -208,7 +208,7 @@ export default function StatisticsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📊 Statistics</Text>
+        <Text style={styles.title}>Statistics</Text>
 
         {/* Overview Cards */}
         <View style={styles.overviewContainer}>

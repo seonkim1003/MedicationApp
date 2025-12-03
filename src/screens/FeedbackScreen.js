@@ -132,7 +132,7 @@ export default function FeedbackScreen({ navigation }) {
 
         <View style={styles.section}>
           <Text style={styles.infoText}>
-            💡 Tips for better feedback:
+            Tips for better feedback:
           </Text>
           <Text style={styles.infoItem}>• Be specific about what you like or don't like</Text>
           <Text style={styles.infoItem}>• Mention any bugs or issues you've encountered</Text>

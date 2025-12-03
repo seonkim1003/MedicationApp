@@ -695,7 +695,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Medication Adherence Status */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Medication Status</Text>
+          <Text style={styles.sectionTitle}>Medication Status</Text>
           
           {/* Yesterday's Status */}
           <View style={styles.adherenceCard}>
@@ -707,7 +707,7 @@ export default function HomeScreen({ navigation }) {
                   yesterdayStatus.missed === 0 ? styles.adherenceBadgeSuccess : styles.adherenceBadgeWarning
                 ]}>
                   <Text style={styles.adherenceBadgeText}>
-                    {yesterdayStatus.missed === 0 ? '✓ All Taken' : `${yesterdayStatus.missed} Missed`}
+                    {yesterdayStatus.missed === 0 ? 'All Taken' : `${yesterdayStatus.missed} Missed`}
                   </Text>
                 </View>
               )}
@@ -749,7 +749,7 @@ export default function HomeScreen({ navigation }) {
                 ]}>
                   <Text style={styles.adherenceBadgeText}>
                     {todayStatus.missed === 0 && todayStatus.remaining === 0
-                      ? '✓ All Done'
+                      ? 'All Done'
                       : todayStatus.missed > 0
                       ? `${todayStatus.missed} Missed`
                       : `${todayStatus.remaining} Remaining`}
@@ -806,7 +806,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Favorite Pictures Management */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📸 Favorite Pictures</Text>
+          <Text style={styles.sectionTitle}>Favorite Pictures</Text>
           <Text style={styles.pictureDescription}>
             Add pictures to display on alarm screen ({pictureCount} {pictureCount === 1 ? 'picture' : 'pictures'})
           </Text>
@@ -825,7 +825,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* Alarm Music Management */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎵 Alarm Music</Text>
+          <Text style={styles.sectionTitle}>Alarm Music</Text>
           <Text style={styles.pictureDescription}>
             Select music to play when alarm rings
           </Text>
@@ -876,7 +876,7 @@ export default function HomeScreen({ navigation }) {
                     style={styles.takeButton}
                     onPress={() => markAsTaken(item.medication)}
                   >
-                    <Text style={styles.takeButtonText}>✓ Take</Text>
+                    <Text style={styles.takeButtonText}>Take</Text>
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.medicationName}>{item.medicationName}</Text>
@@ -958,7 +958,7 @@ export default function HomeScreen({ navigation }) {
                             );
                           }}
                         >
-                          <Text style={styles.removePictureButtonText}>✕</Text>
+                          <Text style={styles.removePictureButtonText}>X</Text>
                         </TouchableOpacity>
                       </View>
                     ))}

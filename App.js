@@ -443,7 +443,7 @@ function MainTabs({ lights, alarmService }) {
                 name="Adherence" 
                 options={{ 
                   tabBarLabel: 'Adherence',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>📊</Text>
+                  tabBarIcon: () => <Text style={styles.tabIcon}>A</Text>
                 }}
               >
                 {props => (
