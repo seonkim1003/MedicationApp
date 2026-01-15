@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView, Image, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView, Dimensions, Animated } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Notifications from 'expo-notifications';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
-import FavoritePicturesService from '../services/FavoritePicturesService';
 import Toast from 'react-native-toast-message';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -15,8 +14,6 @@ const AlarmScreen = ({ route, navigation }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [randomPicture, setRandomPicture] = useState(null);
-  const [alarmMusicUri, setAlarmMusicUri] = useState(null);
   const soundRef = useRef(null);
   const uiOpacity = useRef(new Animated.Value(0)).current;
   const redOverlayOpacity = useRef(new Animated.Value(0)).current;
@@ -30,8 +27,7 @@ const AlarmScreen = ({ route, navigation }) => {
   }, [navigation]);
 
   useEffect(() => {
-    loadAlarmMusic();
-    loadRandomPicture();
+    playAlarmSound();
     
     // Start fade-in animation
     Animated.parallel([
@@ -64,39 +60,11 @@ const AlarmScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  useEffect(() => {
-    if (alarmMusicUri !== null) {
-      playAlarmSound();
-    }
-  }, [alarmMusicUri]);
-
-  const loadAlarmMusic = async () => {
-    try {
-      const medicationManager = MedicationManager.getInstance();
-      const uri = await medicationManager.loadAlarmMusicUri();
-      setAlarmMusicUri(uri);
-    } catch (error) {
-      console.error('Error loading alarm music:', error);
-      setAlarmMusicUri(null);
-    }
-  };
-
-  const loadRandomPicture = async () => {
-    try {
-      const service = FavoritePicturesService.getInstance();
-      const picture = await service.getRandomPicture();
-      setRandomPicture(picture);
-    } catch (error) {
-      console.error('Error loading random picture:', error);
-    }
-  };
-
   const playAlarmSound = async () => {
     try {
-      // Set audio mode to allow playback even in silent mode (iOS-specific)
       const audioModeConfig = {
         allowsRecordingIOS: false,
-        playsInSilentModeIOS: true, // Important: allows notifications to play in silent mode
+        playsInSilentModeIOS: true,
         staysActiveInBackground: true,
         ...(Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX !== undefined && {
           interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
@@ -109,38 +77,9 @@ const AlarmScreen = ({ route, navigation }) => {
       };
 
       await Audio.setAudioModeAsync(audioModeConfig);
-
-      // Play alarm music/sound that loops
-      if (!alarmMusicUri) {
-        console.log('No alarm music configured, skipping music playback');
-        setIsPlaying(true);
-        return;
-      }
-
-      try {
-        const { sound: alarmSound } = await Audio.Sound.createAsync(
-          { uri: alarmMusicUri },
-          { 
-            shouldPlay: true, 
-            isLooping: true, 
-            volume: 1.0,
-            rate: 1.0,
-          }
-        );
-        
-        soundRef.current = alarmSound;
-        setSound(alarmSound);
-        setIsPlaying(true);
-        console.log('Alarm music started playing:', alarmMusicUri);
-      } catch (musicError) {
-        console.warn('Could not load music file, continuing without music:', musicError);
-        // Continue without music - notification sound will still play
-        setIsPlaying(true);
-      }
-      
+      setIsPlaying(true);
     } catch (error) {
       console.error('Error setting up alarm sound:', error);
-      // Still show the alarm screen even if sound setup fails
       setIsPlaying(true);
     }
   };
@@ -344,25 +283,13 @@ const AlarmScreen = ({ route, navigation }) => {
     }
   };
 
-  const backgroundSource = randomPicture ? { uri: randomPicture.uri } : null;
-
   return (
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      {backgroundSource ? (
-        <Image
-          source={backgroundSource}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-          blurRadius={1}
-          onError={() => setRandomPicture(null)}
-        />
-      ) : (
-        <View style={styles.fallbackBackground} />
-      )}
+      <View style={styles.fallbackBackground} />
       <Animated.View 
         style={[
           styles.backgroundOverlay,
@@ -477,16 +404,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginTop: 0,
     paddingTop: 0,
-  },
-  backgroundImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-    backgroundColor: '#a30000',
   },
   fallbackBackground: {
     position: 'absolute',

@@ -64,18 +64,17 @@ export default function AdherenceScreen() {
         const bestStreak = Math.max(...stats.map(s => s.currentStreak));
         setCurrentStreak(bestStreak);
 
-        // Set adherence message and color
         if (avgRate >= 90) {
-          setAdherenceMessage('Excellent! You\'re doing great! 🎉');
+          setAdherenceMessage('Excellent! You\'re doing great!');
           setAdherenceColor('#2ecc71');
         } else if (avgRate >= 75) {
-          setAdherenceMessage('Good job! Keep it up! 👍');
+          setAdherenceMessage('Good job! Keep it up!');
           setAdherenceColor('#3498db');
         } else if (avgRate >= 50) {
-          setAdherenceMessage('You\'re on track! Stay consistent! 💪');
+          setAdherenceMessage('You\'re on track! Stay consistent!');
           setAdherenceColor('#f39c12');
         } else {
-          setAdherenceMessage('Let\'s improve together! You can do it! 🌟');
+          setAdherenceMessage('Let\'s improve together! You can do it!');
           setAdherenceColor('#e74c3c');
         }
       }
@@ -233,11 +232,6 @@ export default function AdherenceScreen() {
               <Text style={styles.statusMessage}>{adherenceMessage}</Text>
               <Text style={styles.statusSubtext}>Your adherence journey</Text>
             </View>
-            <View style={[styles.adherenceCircle, { backgroundColor: adherenceColor + '20' }]}>
-              <Text style={[styles.adherencePercent, { color: adherenceColor }]}>
-                {overallAdherence}%
-              </Text>
-            </View>
           </View>
           <View style={styles.statusStats}>
             <View style={styles.statusStatItem}>
@@ -246,7 +240,7 @@ export default function AdherenceScreen() {
             </View>
             <View style={styles.statusStatItem}>
               <Text style={styles.statusStatValue}>{currentStreak}</Text>
-              <Text style={styles.statusStatLabel}>Day Streak 🔥</Text>
+              <Text style={styles.statusStatLabel}>Day Streak</Text>
             </View>
             <View style={styles.statusStatItem}>
               <Text style={styles.statusStatValue}>{medications.length}</Text>
@@ -401,13 +395,6 @@ export default function AdherenceScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Refresh Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.button} onPress={loadData}>
-            <Text style={styles.buttonText}>Refresh Data</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
@@ -466,17 +453,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#7f8c8d',
     fontWeight: '500',
-  },
-  adherenceCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adherencePercent: {
-    fontSize: 28,
-    fontWeight: 'bold',
   },
   statusStats: {
     flexDirection: 'row',

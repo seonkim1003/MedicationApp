@@ -145,9 +145,3 @@ export interface RefillReminder {
   isActive: boolean;
 }
 
-// Favorite Picture
-export interface FavoritePicture {
-  id: string;
-  uri: string;
-  createdAt: string;
-}

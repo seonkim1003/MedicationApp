@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Modal, Pressable, Image, Alert } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
-import FavoritePicturesService from '../services/FavoritePicturesService';
 import CircularTimer from '../components/CircularTimer';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
@@ -22,23 +19,12 @@ export default function HomeScreen({ navigation }) {
   const [nextAlarmTime, setNextAlarmTime] = useState(null);
   const [yesterdayStatus, setYesterdayStatus] = useState({ total: 0, taken: 0, missed: 0 });
   const [todayStatus, setTodayStatus] = useState({ total: 0, taken: 0, remaining: 0, missed: 0 });
-  const [isPictureModalVisible, setIsPictureModalVisible] = useState(false);
-  const [favoritePictures, setFavoritePictures] = useState([]);
-  const [pictureCount, setPictureCount] = useState(0);
-  const [alarmMusicUri, setAlarmMusicUri] = useState(null);
-  const [alarmMusicName, setAlarmMusicName] = useState(null);
-  const [isSelectingPictures, setIsSelectingPictures] = useState(false);
 
   useEffect(() => {
     loadDashboard();
-    loadFavoritePictures();
-    loadAlarmMusic();
-    requestPicturePermissions();
     
-    // Refresh full dashboard every 30 seconds
     const dashboardInterval = setInterval(loadDashboard, 30000);
     
-    // Update next alarm time more frequently (every 5 seconds) for accurate countdown
     const alarmUpdateInterval = setInterval(async () => {
       try {
         const medicationManager = MedicationManager.getInstance();
@@ -57,291 +43,19 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
-  const requestPicturePermissions = async () => {
-    try {
-      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-      const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
-        // Permissions not granted, but don't show error immediately
-      }
-    } catch (error) {
-      console.error('Error requesting permissions:', error);
-    }
-  };
-
-  const loadFavoritePictures = async () => {
-    try {
-      const service = FavoritePicturesService.getInstance();
-      const pictures = await service.loadPictures();
-      const count = await service.getPictureCount();
-      setFavoritePictures(pictures);
-      setPictureCount(count);
-    } catch (error) {
-      console.error('Error loading favorite pictures:', error);
-    }
-  };
-
-  const handleAddPicture = () => {
-    if (isSelectingPictures) {
-      return;
-    }
-    Alert.alert(
-      'Add Picture',
-      'Choose an option',
-      [
-        {
-          text: 'Camera',
-          onPress: () => openCamera(),
-        },
-        {
-          text: 'Photo Library',
-          onPress: () => openImageLibrary(),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  const openCamera = async () => {
-    if (isSelectingPictures) {
-      return;
-    }
-    try {
-      setIsSelectingPictures(true);
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        await addPictureToFavorites(uri);
-      }
-    } catch (error) {
-      console.error('Error opening camera:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to open camera',
-      });
-    } finally {
-      setIsSelectingPictures(false);
-    }
-  };
-
-  const openImageLibrary = async () => {
-    if (isSelectingPictures) {
-      return;
-    }
-    try {
-      setIsSelectingPictures(true);
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false, // Disable editing when selecting multiple
-        quality: 0.8,
-        allowsMultipleSelection: true, // Enable multiple selection
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Add all selected pictures
-        await addMultiplePicturesToFavorites(result.assets.map(asset => asset.uri));
-      }
-    } catch (error) {
-      console.error('Error opening image library:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to open photo library',
-      });
-    } finally {
-      setIsSelectingPictures(false);
-    }
-  };
-
-  const addPictureToFavorites = async (uri) => {
-    try {
-      const service = FavoritePicturesService.getInstance();
-      await service.addPicture(uri);
-      await loadFavoritePictures();
-      
-      Toast.show({
-        type: 'success',
-        text1: 'Picture Added',
-        text2: 'Picture has been added to your favorites',
-      });
-    } catch (error) {
-      console.error('Error adding picture:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to add picture',
-      });
-    }
-  };
-
-  const addMultiplePicturesToFavorites = async (uris) => {
-    try {
-      const service = FavoritePicturesService.getInstance();
-      let successCount = 0;
-      let errorCount = 0;
-
-      // Add all pictures one by one
-      for (const uri of uris) {
-        try {
-          await service.addPicture(uri);
-          successCount++;
-        } catch (error) {
-          console.error('Error adding picture:', error);
-          errorCount++;
-        }
-      }
-
-      await loadFavoritePictures();
-      
-      if (errorCount === 0) {
-        Toast.show({
-          type: 'success',
-          text1: 'Pictures Added',
-          text2: `${successCount} ${successCount === 1 ? 'picture' : 'pictures'} added to favorites`,
-        });
-      } else {
-        Toast.show({
-          type: 'warning',
-          text1: 'Partial Success',
-          text2: `Added ${successCount} of ${uris.length} pictures`,
-        });
-      }
-    } catch (error) {
-      console.error('Error adding multiple pictures:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to add some pictures',
-      });
-    }
-  };
-
-  const removePicture = async (pictureId) => {
-    try {
-      const service = FavoritePicturesService.getInstance();
-      await service.removePicture(pictureId);
-      await loadFavoritePictures();
-      
-      Toast.show({
-        type: 'success',
-        text1: 'Picture Removed',
-        text2: 'Picture has been removed from favorites',
-      });
-    } catch (error) {
-      console.error('Error removing picture:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to remove picture',
-      });
-    }
-  };
-
-  const loadAlarmMusic = async () => {
-    try {
-      const medicationManager = MedicationManager.getInstance();
-      const uri = await medicationManager.loadAlarmMusicUri();
-      setAlarmMusicUri(uri);
-      if (uri) {
-        // Extract filename from URI
-        const fileName = uri.split('/').pop() || uri.split('\\').pop() || 'Custom Music';
-        setAlarmMusicName(fileName);
-      } else {
-        setAlarmMusicName(null);
-      }
-    } catch (error) {
-      console.error('Error loading alarm music:', error);
-    }
-  };
-
-  const selectAlarmMusic = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        const medicationManager = MedicationManager.getInstance();
-        await medicationManager.saveAlarmMusicUri(file.uri);
-        await loadAlarmMusic();
-        
-        Toast.show({
-          type: 'success',
-          text1: 'Music Selected',
-          text2: 'Alarm music has been set',
-        });
-      }
-    } catch (error) {
-      console.error('Error selecting music file:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to select music file',
-      });
-    }
-  };
-
-  const removeAlarmMusic = async () => {
-    try {
-      Alert.alert(
-        'Remove Alarm Music',
-        'Are you sure you want to remove the alarm music?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove',
-            style: 'destructive',
-            onPress: async () => {
-              const medicationManager = MedicationManager.getInstance();
-              await medicationManager.saveAlarmMusicUri(null);
-              await loadAlarmMusic();
-              
-              Toast.show({
-                type: 'success',
-                text1: 'Music Removed',
-                text2: 'Alarm music has been removed',
-              });
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error removing alarm music:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to remove music',
-      });
-    }
-  };
-
   const loadDashboard = async () => {
     try {
       setIsLoading(true);
       const medicationManager = MedicationManager.getInstance();
       const historyService = HistoryService.getInstance();
 
-      // Load medications
       const medications = await medicationManager.loadMedications();
       const allAlarms = await medicationManager.loadAlarms();
       
       setTotalMedications(medications.length);
 
-      // Get today's medications
       const today = moment();
-      const dayOfWeek = today.day() === 0 ? 7 : today.day(); // Convert to our system
+      const dayOfWeek = today.day() === 0 ? 7 : today.day();
       
       const todayMeds = [];
       medications.forEach(med => {
@@ -360,7 +74,6 @@ export default function HomeScreen({ navigation }) {
         }
       });
 
-      // Sort by time
       todayMeds.sort((a, b) => {
         const timeA = moment(a.time, 'HH:mm');
         const timeB = moment(b.time, 'HH:mm');
@@ -369,7 +82,6 @@ export default function HomeScreen({ navigation }) {
       
       setTodayMedications(todayMeds);
 
-      // Get upcoming alarms (next 3)
       const now = moment();
       const upcoming = todayMeds
         .filter(med => {
@@ -386,26 +98,21 @@ export default function HomeScreen({ navigation }) {
       
       setUpcomingAlarms(upcoming);
 
-      // Calculate next alarm time for circular timer
       const nextAlarm = calculateNextAlarmTime(medications, allAlarms);
       setNextAlarmTime(nextAlarm);
 
-      // Get today's taken count
       const todayHistory = await historyService.getRecentHistory(1);
       setTodayTaken(todayHistory.length);
 
-      // Get low pill count medications
       const lowCount = medications.filter(m => m.pillCount <= 5 && m.pillCount > 0);
       setLowPillCount(lowCount);
 
-      // Get current streak
       const stats = await historyService.getAllAdherenceStats(medications, allAlarms);
       if (stats.length > 0) {
         const bestStreak = Math.max(...stats.map(s => s.currentStreak));
         setCurrentStreak(bestStreak);
       }
 
-      // Calculate yesterday and today adherence
       try {
         const yesterday = moment().subtract(1, 'day');
         const yesterdayDayOfWeek = yesterday.day() === 0 ? 7 : yesterday.day();
@@ -413,7 +120,6 @@ export default function HomeScreen({ navigation }) {
         
         const allHistory = await historyService.loadHistory();
         
-        // Yesterday's status
         const yesterdayAlarms = [];
         medications.forEach(med => {
           const medAlarms = allAlarms.filter(a => 
@@ -461,7 +167,6 @@ export default function HomeScreen({ navigation }) {
           missed: Math.max(0, yesterdayAlarms.length - yesterdayTaken.length),
         });
 
-        // Today's status
         const todayAlarms = todayMeds;
         const now = moment();
         const todayTaken = todayAlarms.filter(alarm => {
@@ -490,7 +195,6 @@ export default function HomeScreen({ navigation }) {
           }
         });
         
-        // Calculate remaining: medications scheduled for later today (future alarms)
         const todayRemaining = todayAlarms.filter(alarm => {
           try {
             const alarmTime = moment(alarm.time, 'HH:mm');
@@ -499,14 +203,12 @@ export default function HomeScreen({ navigation }) {
               hour: alarmTime.hour(),
               minute: alarmTime.minute(),
             });
-            // Only count future alarms (not yet due)
             return todayAlarm.isAfter(now);
           } catch (e) {
             return false;
           }
         });
         
-        // Calculate missed: medications that were due today but not taken
         const todayMissed = todayAlarms.filter(alarm => {
           try {
             const alarmTime = moment(alarm.time, 'HH:mm');
@@ -561,12 +263,11 @@ export default function HomeScreen({ navigation }) {
   };
 
   const calculateNextAlarmTime = (medications, allAlarms) => {
-    try {
-      const now = moment();
-      const futureAlarms = [];
+      try {
+        const now = moment();
+        const futureAlarms = [];
 
-      // Collect all future alarms across the next 7 days
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         const checkDate = moment(now).add(dayOffset, 'days');
         const dayOfWeek = checkDate.day() === 0 ? 7 : checkDate.day();
 
@@ -594,7 +295,6 @@ export default function HomeScreen({ navigation }) {
         });
       }
 
-      // Sort all future alarms by time and return the earliest one
       if (futureAlarms.length === 0) {
         return null;
       }
@@ -614,7 +314,6 @@ export default function HomeScreen({ navigation }) {
       const historyService = HistoryService.getInstance();
       const medicationManager = MedicationManager.getInstance();
       
-      // Check if medication has pills available
       if (medication.pillCount <= 0) {
         Toast.show({
           type: 'warning',
@@ -624,11 +323,9 @@ export default function HomeScreen({ navigation }) {
         return;
       }
 
-      // Decrease pill count first
       const success = await medicationManager.decreasePillCount(medication.id);
       
       if (success) {
-        // Record in history after successful decrease
         await historyService.recordMedicationTaken(
           medication.id,
           medication.name
@@ -640,7 +337,6 @@ export default function HomeScreen({ navigation }) {
           text2: `${medication.name} recorded`,
         });
 
-        // Reload dashboard to update pill counts
         await loadDashboard();
       } else {
         Toast.show({
@@ -672,12 +368,10 @@ export default function HomeScreen({ navigation }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Dashboard</Text>
 
-        {/* Circular Timer for Next Alarm */}
         <View style={styles.timerSection}>
           <CircularTimer nextAlarmTime={nextAlarmTime} size={160} strokeWidth={12} />
         </View>
 
-        {/* Quick Stats */}
         <View style={styles.quickStatsContainer}>
           <View style={styles.quickStatCard}>
             <Text style={styles.quickStatValue}>{totalMedications}</Text>
@@ -693,11 +387,9 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Medication Adherence Status */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Medication Status</Text>
           
-          {/* Yesterday's Status */}
           <View style={styles.adherenceCard}>
             <View style={styles.adherenceHeader}>
               <Text style={styles.adherenceDayTitle}>Yesterday</Text>
@@ -734,7 +426,6 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
 
-          {/* Today's Status */}
           <View style={[styles.adherenceCard, styles.adherenceCardToday]}>
             <View style={styles.adherenceHeader}>
               <Text style={styles.adherenceDayTitle}>Today</Text>
@@ -790,7 +481,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Low Pill Count Alert */}
         {lowPillCount.length > 0 && (
           <View style={[styles.section, styles.alertSection]}>
             <Text style={styles.alertTitle}>Low Pill Count</Text>
@@ -804,65 +494,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Favorite Pictures Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Favorite Pictures</Text>
-          <Text style={styles.pictureDescription}>
-            Add pictures to display on alarm screen ({pictureCount} {pictureCount === 1 ? 'picture' : 'pictures'})
-          </Text>
-          <TouchableOpacity 
-            style={[
-              styles.pictureButton,
-              isSelectingPictures && styles.disabledButton
-            ]}
-            onPress={() => setIsPictureModalVisible(true)}
-            activeOpacity={0.8}
-            disabled={isSelectingPictures}
-          >
-            <Text style={styles.pictureButtonText}>Manage Pictures</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Alarm Music Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alarm Music</Text>
-          <Text style={styles.pictureDescription}>
-            Select music to play when alarm rings
-          </Text>
-          {alarmMusicUri ? (
-            <View style={styles.musicInfoContainer}>
-              <Text style={styles.musicName} numberOfLines={1}>
-                {alarmMusicName || 'Custom Music'}
-              </Text>
-              <View style={styles.musicButtonsRow}>
-                <TouchableOpacity 
-                  style={[styles.musicButton, styles.musicButtonSecondary]}
-                  onPress={selectAlarmMusic}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.musicButtonText}>Change</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.musicButton, styles.musicButtonDanger]}
-                  onPress={removeAlarmMusic}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.musicButtonText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.pictureButton}
-              onPress={selectAlarmMusic}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.pictureButtonText}>Select Music File</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Upcoming Medications */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Today</Text>
           {upcomingAlarms.length > 0 ? (
@@ -893,94 +524,7 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        {/* Refresh Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.button} onPress={loadDashboard}>
-            <Text style={styles.buttonText}>Refresh Dashboard</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
-
-      {/* Picture Management Modal */}
-      <Modal
-        visible={isPictureModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsPictureModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setIsPictureModalVisible(false)}>
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContainer}>
-              <ScrollView 
-                showsVerticalScrollIndicator={true}
-                contentContainerStyle={styles.modalScrollContent}
-              >
-                <Text style={styles.modalTitle}>Manage Favorite Pictures</Text>
-                <Text style={styles.modalSubtitle}>
-                  Pictures will be randomly displayed on alarm screen
-                </Text>
-
-                <TouchableOpacity 
-                  style={[
-                    styles.addPictureButton,
-                    isSelectingPictures && styles.disabledButton
-                  ]}
-                  onPress={handleAddPicture}
-                  activeOpacity={0.8}
-                  disabled={isSelectingPictures}
-                >
-                  <Text style={styles.addPictureButtonText}>+ Add Picture</Text>
-                </TouchableOpacity>
-
-                {favoritePictures.length > 0 ? (
-                  <View style={styles.picturesGrid}>
-                    {favoritePictures.map((picture) => (
-                      <View key={picture.id} style={styles.pictureItem}>
-                        <Image
-                          source={{ uri: picture.uri }}
-                          style={styles.pictureThumbnail}
-                          resizeMode="cover"
-                        />
-                        <TouchableOpacity
-                          style={styles.removePictureButton}
-                          onPress={() => {
-                            Alert.alert(
-                              'Remove Picture',
-                              'Are you sure you want to remove this picture?',
-                              [
-                                { text: 'Cancel', style: 'cancel' },
-                                {
-                                  text: 'Remove',
-                                  style: 'destructive',
-                                  onPress: () => removePicture(picture.id),
-                                },
-                              ]
-                            );
-                          }}
-                        >
-                          <Text style={styles.removePictureButtonText}>X</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.emptyPicturesText}>
-                    No pictures added yet. Tap "Add Picture" to get started.
-                  </Text>
-                )}
-
-                <TouchableOpacity 
-                  style={styles.closeButton}
-                  onPress={() => setIsPictureModalVisible(false)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.closeButtonText}>Close</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -1245,148 +789,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 8,
-  },
-  pictureDescription: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  pictureButton: {
-    backgroundColor: '#007bff',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    shadowColor: '#007bff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pictureButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    maxWidth: 420,
-    maxHeight: SCREEN_HEIGHT * 0.75,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  modalScrollContent: {
-    paddingBottom: 10,
-    flexGrow: 0,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#212529',
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6c757d',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  addPictureButton: {
-    backgroundColor: '#28a745',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#28a745',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addPictureButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  picturesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  pictureItem: {
-    width: '48%',
-    marginBottom: 12,
-    position: 'relative',
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-  },
-  pictureThumbnail: {
-    width: '100%',
-    height: 150,
-    backgroundColor: '#f8f9fa',
-  },
-  removePictureButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#dc3545',
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  removePictureButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  emptyPicturesText: {
-    fontSize: 16,
-    color: '#adb5bd',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    padding: 20,
-    marginBottom: 20,
-  },
-  closeButton: {
-    backgroundColor: '#6c757d',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  closeButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   musicInfoContainer: {
     backgroundColor: '#f8f9fa',

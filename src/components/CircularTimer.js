@@ -30,7 +30,6 @@ const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
 
       setTimeUntil({ hours, minutes, seconds });
 
-      // Calculate progress (assuming 24 hours max)
       const maxTime = 24 * 60 * 60 * 1000;
       const progressValue = Math.min(1, diff / maxTime);
       setProgress(progressValue);
@@ -70,7 +69,6 @@ const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
     <View style={styles.container}>
       <View style={[styles.circleContainer, { width: size, height: size }]}>
         <Svg width={size} height={size} style={styles.svg}>
-          {/* Background circle */}
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -79,7 +77,6 @@ const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
             strokeWidth={strokeWidth}
             fill="transparent"
           />
-          {/* Progress circle */}
           <Circle
             cx={size / 2}
             cy={size / 2}

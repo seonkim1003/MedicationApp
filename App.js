@@ -9,13 +9,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
-
-// Import services
 import SmartLightService from './src/services/SmartLightService';
 import AlarmService from './src/services/AlarmService';
 import { initializeFirebase } from './src/services/firebase';
-
-// Import screens
 import HomeScreen from './src/screens/HomeScreen';
 import MedicationsScreen from './src/screens/MedicationsScreen';
 import LightsScreen from './src/screens/LightsScreen';
@@ -30,7 +26,6 @@ import SwipeableTabWrapper from './src/components/SwipeableTabWrapper';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Create a stack navigator for lights (list + detail)
 function LightsStack() {
   return (
     <Stack.Navigator>
@@ -53,7 +48,6 @@ function LightsStack() {
   );
 }
 
-// Medications stack
 function MedicationsStack({ lights, alarmService }) {
   return (
     <Stack.Navigator>
@@ -84,76 +78,56 @@ export default function App() {
   useEffect(() => {
     if (!alarmService) return;
     
-    // Set up navigation ref with retry logic
     let retryCount = 0;
     const maxRetries = 10;
     
     const setupNavigation = () => {
       if (navigationRef.current) {
-        console.log('Setting navigation ref for alarm service');
         alarmService.setNavigationRef(navigationRef);
         alarmService.setupNotificationHandlers();
       } else if (retryCount < maxRetries) {
         retryCount++;
-        console.log(`Navigation ref not ready yet, retrying... (${retryCount}/${maxRetries})`);
         setTimeout(setupNavigation, 200);
-      } else {
-        console.warn('Failed to set up navigation ref after maximum retries');
       }
     };
     
-    // Small delay to ensure NavigationContainer is mounted
     setTimeout(setupNavigation, 300);
   }, [alarmService]);
 
-  // Handle app opened from notification (when app is closed/background)
   useEffect(() => {
     let pendingNotification = null;
 
     const navigateToAlarmScreen = (data, retryCount = 0) => {
       const maxRetries = 15;
       
-      if (!data || !data.medicationId) {
-        return;
-      }
+      if (!data || !data.medicationId) return;
 
       if (navigationRef.current && alarmService) {
         try {
-          console.log('Navigating to alarm screen from notification:', data.medicationId);
           navigationRef.current.navigate('Alarm', {
             medicationId: data.medicationId,
             alarmId: data.alarmId,
             medicationName: data.medicationName || 'Medication',
             alarmTime: data.alarmTime,
           });
-          console.log('✅ Successfully navigated to alarm screen');
-          pendingNotification = null; // Clear after successful navigation
+          pendingNotification = null;
         } catch (error) {
-          console.error('Error navigating to alarm screen:', error);
           if (retryCount < maxRetries) {
             setTimeout(() => navigateToAlarmScreen(data, retryCount + 1), 300);
           }
         }
       } else if (retryCount < maxRetries) {
-        // Retry if navigation not ready yet
-        console.log(`Navigation not ready, retrying... (${retryCount + 1}/${maxRetries})`);
         setTimeout(() => navigateToAlarmScreen(data, retryCount + 1), 300);
-      } else {
-        console.warn('Navigation not available after max retries');
       }
     };
 
     const checkInitialNotification = async () => {
       try {
-        // Check if app was opened from a notification
         const response = await Notifications.getLastNotificationResponseAsync();
         if (response) {
           const data = response.notification.request.content.data;
-          console.log('📱 App opened from notification:', data);
-          
           if (data && data.medicationId) {
             pendingNotification = data;
-            // Try to navigate immediately
             navigateToAlarmScreen(data);
           }
         }
@@ -162,24 +136,16 @@ export default function App() {
       }
     };
 
-    // Check when app comes to foreground
     const handleAppStateChange = (nextAppState) => {
       if (nextAppState === 'active') {
-        // App came to foreground - check for notification
-        console.log('App state changed to active, checking for notifications...');
         checkInitialNotification();
-        
-        // Also try to navigate if we have a pending notification
         if (pendingNotification) {
           navigateToAlarmScreen(pendingNotification);
         }
       }
     };
 
-    // Check immediately on mount
     checkInitialNotification();
-
-    // Subscribe to app state changes
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
@@ -189,38 +155,28 @@ export default function App() {
 
   const initializeApp = async () => {
     try {
-      console.log('Initializing MedicationRunner App...');
       setIsLoading(true);
 
-      // Initialize Firebase
       try {
         initializeFirebase();
-        console.log('Firebase initialized');
       } catch (error) {
         console.warn('Firebase initialization failed:', error);
-        // Continue app initialization even if Firebase fails
       }
 
-      // Initialize services
       const smartLightService = SmartLightService.getInstance();
       const alarmServiceInstance = AlarmService.getInstance();
 
-      // Initialize alarm service
       await alarmServiceInstance.initialize();
       setAlarmService(alarmServiceInstance);
 
-      // Reschedule alarms
       try {
         await alarmServiceInstance.rescheduleAllMedications();
       } catch (e) {
         console.warn('Failed to reschedule alarms on startup');
       }
 
-      // Load smart lights
-      console.log('Loading smart lights...');
       const { lights: loadedLights, error } = await smartLightService.getSmartLights();
       if (error) {
-        console.warn('Error loading lights:', error);
         Toast.show({
           type: 'warning',
           text1: 'Smart Lights',
@@ -228,10 +184,7 @@ export default function App() {
         });
       } else {
         setLights(loadedLights);
-        console.log(`Loaded ${loadedLights.length} smart lights`);
       }
-
-      console.log('App initialized successfully');
     } catch (error) {
       console.error('Failed to initialize app:', error);
       Alert.alert(
@@ -264,19 +217,15 @@ export default function App() {
           <NavigationContainer 
             ref={navigationRef}
             onReady={async () => {
-              console.log('NavigationContainer is ready');
               if (alarmService && navigationRef.current) {
-                console.log('Setting navigation ref after container ready');
                 alarmService.setNavigationRef(navigationRef);
                 alarmService.setupNotificationHandlers();
                 
-                // Check for notification that opened the app after navigation is ready
                 try {
                   const response = await Notifications.getLastNotificationResponseAsync();
                   if (response) {
                     const data = response.notification.request.content.data;
                     if (data && data.medicationId) {
-                      console.log('Navigating to alarm screen after NavigationContainer ready');
                       setTimeout(() => {
                         try {
                           navigationRef.current?.navigate('Alarm', {

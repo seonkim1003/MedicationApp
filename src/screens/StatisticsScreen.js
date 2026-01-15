@@ -218,7 +218,7 @@ export default function StatisticsScreen() {
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{currentStreak}</Text>
-            <Text style={styles.statLabel}>Day Streak 🔥</Text>
+            <Text style={styles.statLabel}>Day Streak</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{todayCount}</Text>
@@ -298,13 +298,6 @@ export default function StatisticsScreen() {
             />
           </View>
         )}
-
-        {/* Refresh Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.button} onPress={loadStatistics}>
-            <Text style={styles.buttonText}>Refresh Statistics</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Reset Data Button */}
         <View style={styles.section}>
