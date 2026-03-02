@@ -277,7 +277,6 @@ class MedicationManager {
   }
 
   async clearAllData(): Promise<void> {
-  async clearAllData(): Promise<void> {
     try {
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
       console.log('All data cleared');

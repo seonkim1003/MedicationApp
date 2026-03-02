@@ -11,7 +11,7 @@ import Toast from 'react-native-toast-message';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function MedicationsScreen({ lights, alarmService }) {
+export default function MedicationsScreen({ navigation, lights, alarmService }) {
   const [medications, setMedications] = useState([]);
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1071,6 +1071,13 @@ export default function MedicationsScreen({ lights, alarmService }) {
 
         {/* Actions */}
         <View style={styles.section}>
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton]}
+          onPress={() => navigation.navigate('ScanMedication')}
+        >
+          <Text style={styles.buttonText}>Scan Medication</Text>
+        </TouchableOpacity>
+        <View style={{ height: 10 }} />
           <TouchableOpacity style={styles.button} onPress={openAddMedication}>
             <Text style={styles.buttonText}>Add Medication</Text>
           </TouchableOpacity>

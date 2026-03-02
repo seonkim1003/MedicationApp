@@ -128,9 +128,8 @@ export default function CalendarScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>📅 Weekly Schedule</Text>
+        <Text style={styles.title}>Weekly Schedule</Text>
 
-        {/* Week Navigation */}
         <View style={styles.weekNavigation}>
           <TouchableOpacity style={styles.weekNavButton} onPress={() => changeWeek(-1)}>
             <Text style={styles.weekNavButtonText}>← Prev</Text>
@@ -143,7 +142,6 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Weekly Schedule */}
         {weekDays.map((day, index) => {
           const dateStr = day.format('YYYY-MM-DD');
           const dayData = weekSchedule[dateStr];

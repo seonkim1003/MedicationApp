@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { StyleSheet, View, Text, Alert, AppState } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -22,6 +23,8 @@ import FeedbackScreen from './src/screens/FeedbackScreen';
 import ViewFeedbackScreen from './src/screens/ViewFeedbackScreen';
 import NotesScreen from './src/screens/NotesScreen';
 import SwipeableTabWrapper from './src/components/SwipeableTabWrapper';
+import ScanMedicationScreen from './src/screens/ScanMedicationScreen';
+import AddMedicationFromScanScreen from './src/screens/AddMedicationFromScanScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,6 +64,20 @@ function MedicationsStack({ lights, alarmService }) {
           </SwipeableTabWrapper>
         )}
       </Stack.Screen>
+      <Stack.Screen
+        name="ScanMedication"
+        component={ScanMedicationScreen}
+        options={{
+          title: 'Scan Medication',
+        }}
+      />
+      <Stack.Screen
+        name="AddMedicationFromScan"
+        component={AddMedicationFromScanScreen}
+        options={{
+          title: 'Add Medication',
+        }}
+      />
     </Stack.Navigator>
   );
 }

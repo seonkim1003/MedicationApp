@@ -56,11 +56,9 @@
     },
     "plugins": [
       [
-        "expo-notifications",
+        "expo-camera",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ffffff",
-          "defaultChannel": "default"
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan medication NDC barcodes."
         }
       ]
     ],
