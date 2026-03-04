@@ -21,8 +21,12 @@
       }
     },
     "production": {
+      "distribution": "store",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
       }
     }
   },

@@ -23,7 +23,7 @@
         "NSCameraUsageDescription": "This app needs access to camera for medication scanning",
         "NSMicrophoneUsageDescription": "This app needs access to microphone for voice reminders"
       },
-      "bundleIdentifier": "com.example.medicaionrunner"
+      "bundleIdentifier": "com.medicationrunner.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -49,7 +49,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ],
-      "package": "com.example.medicaionrunner"
+      "package": "com.medicationrunner.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
