@@ -10,6 +10,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
+import { colors } from './src/theme';
 import SmartLightService from './src/services/SmartLightService';
 import AlarmService from './src/services/AlarmService';
 import { initializeFirebase } from './src/services/firebase';
@@ -32,9 +33,9 @@ const Tab = createBottomTabNavigator();
 function LightsStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="LightsList" 
-        options={{ title: 'Smart Lights' }}
+      <Stack.Screen
+        name="LightsList"
+        options={{ title: 'Smart Lights', headerStyle: { backgroundColor: colors.headerBackground }, headerTintColor: colors.headerText, headerTitleStyle: { fontWeight: '700' } }}
       >
         {props => (
           <SwipeableTabWrapper>
@@ -42,10 +43,10 @@ function LightsStack() {
           </SwipeableTabWrapper>
         )}
       </Stack.Screen>
-      <Stack.Screen 
-        name="LightDetail" 
+      <Stack.Screen
+        name="LightDetail"
         component={LightDetailScreen}
-        options={{ title: 'Light Control' }}
+        options={{ title: 'Light Control', headerStyle: { backgroundColor: colors.headerBackground }, headerTintColor: colors.headerText, headerTitleStyle: { fontWeight: '700' } }}
       />
     </Stack.Navigator>
   );
@@ -54,9 +55,9 @@ function LightsStack() {
 function MedicationsStack({ lights, alarmService }) {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="MedicationsList" 
-        options={{ title: 'Medications' }}
+      <Stack.Screen
+        name="MedicationsList"
+        options={{ title: 'Medications', headerStyle: { backgroundColor: colors.headerBackground }, headerTintColor: colors.headerText, headerTitleStyle: { fontWeight: '700' } }}
       >
         {props => (
           <SwipeableTabWrapper>
@@ -69,6 +70,9 @@ function MedicationsStack({ lights, alarmService }) {
         component={ScanMedicationScreen}
         options={{
           title: 'Scan Medication',
+          headerStyle: { backgroundColor: colors.headerBackground },
+          headerTintColor: colors.headerText,
+          headerTitleStyle: { fontWeight: '700' },
         }}
       />
       <Stack.Screen
@@ -76,6 +80,9 @@ function MedicationsStack({ lights, alarmService }) {
         component={AddMedicationFromScanScreen}
         options={{
           title: 'Add Medication',
+          headerStyle: { backgroundColor: colors.headerBackground },
+          headerTintColor: colors.headerText,
+          headerTitleStyle: { fontWeight: '700' },
         }}
       />
     </Stack.Navigator>
@@ -94,10 +101,10 @@ export default function App() {
 
   useEffect(() => {
     if (!alarmService) return;
-    
+
     let retryCount = 0;
     const maxRetries = 10;
-    
+
     const setupNavigation = () => {
       if (navigationRef.current) {
         alarmService.setNavigationRef(navigationRef);
@@ -107,7 +114,7 @@ export default function App() {
         setTimeout(setupNavigation, 200);
       }
     };
-    
+
     setTimeout(setupNavigation, 300);
   }, [alarmService]);
 
@@ -116,7 +123,7 @@ export default function App() {
 
     const navigateToAlarmScreen = (data, retryCount = 0) => {
       const maxRetries = 15;
-      
+
       if (!data || !data.medicationId) return;
 
       if (navigationRef.current && alarmService) {
@@ -220,7 +227,7 @@ export default function App() {
         <PaperProvider>
           <View style={styles.container}>
             <Text style={styles.loadingText}>Loading MedicationRunner...</Text>
-            <StatusBar style="auto" />
+            <StatusBar style="light" />
           </View>
         </PaperProvider>
       </SafeAreaProvider>
@@ -231,13 +238,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <PaperProvider>
-          <NavigationContainer 
+          <NavigationContainer
             ref={navigationRef}
             onReady={async () => {
               if (alarmService && navigationRef.current) {
                 alarmService.setNavigationRef(navigationRef);
                 alarmService.setupNotificationHandlers();
-                
+
                 try {
                   const response = await Notifications.getLastNotificationResponseAsync();
                   if (response) {
@@ -267,8 +274,8 @@ export default function App() {
               <Stack.Screen name="Main">
                 {() => <MainTabs lights={lights} alarmService={alarmService} />}
               </Stack.Screen>
-              <Stack.Screen 
-                name="Alarm" 
+              <Stack.Screen
+                name="Alarm"
                 component={AlarmScreen}
                 options={{
                   presentation: 'modal',
@@ -277,33 +284,33 @@ export default function App() {
                   animationEnabled: true,
                 }}
               />
-              <Stack.Screen 
-                name="ViewFeedback" 
+              <Stack.Screen
+                name="ViewFeedback"
                 component={ViewFeedbackScreen}
                 options={{
                   presentation: 'card',
                   headerShown: true,
                   title: 'View Feedback',
                   headerStyle: {
-                    backgroundColor: '#007bff',
+                    backgroundColor: colors.headerBackground,
                   },
-                  headerTintColor: '#fff',
+                  headerTintColor: colors.headerText,
                   headerTitleStyle: {
                     fontWeight: '700',
                   },
                 }}
               />
-              <Stack.Screen 
-                name="Notes" 
+              <Stack.Screen
+                name="Notes"
                 component={NotesScreen}
                 options={{
                   presentation: 'card',
                   headerShown: true,
                   title: 'Symptom Tracking & Notes',
                   headerStyle: {
-                    backgroundColor: '#17a2b8',
+                    backgroundColor: colors.headerBackground,
                   },
-                  headerTintColor: '#fff',
+                  headerTintColor: colors.headerText,
                   headerTitleStyle: {
                     fontWeight: '700',
                   },
@@ -311,27 +318,27 @@ export default function App() {
               />
             </Stack.Navigator>
           </NavigationContainer>
-          <StatusBar style="auto" />
-          <Toast 
+          <StatusBar style="light" />
+          <Toast
             config={{
               warning: ({ text1, text2 }) => (
                 <View style={{
                   height: 60,
                   width: '90%',
-                  backgroundColor: '#ffc107',
-                  borderRadius: 10,
+                  backgroundColor: colors.warning,
+                  borderRadius: 12,
                   padding: 15,
                   flexDirection: 'row',
                   alignItems: 'center',
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
+                  shadowOpacity: 0.15,
+                  shadowRadius: 6,
                   elevation: 5,
                 }}>
                   <View style={{ flex: 1 }}>
-                    {text1 && <Text style={{ fontSize: 16, fontWeight: '700', color: '#212529', marginBottom: 4 }}>{text1}</Text>}
-                    {text2 && <Text style={{ fontSize: 14, color: '#212529' }}>{text2}</Text>}
+                    {text1 && <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 }}>{text1}</Text>}
+                    {text2 && <Text style={{ fontSize: 14, color: colors.textPrimary }}>{text2}</Text>}
                   </View>
                 </View>
               ),
@@ -347,117 +354,117 @@ function MainTabs({ lights, alarmService }) {
   return (
     <Tab.Navigator
       screenOptions={{
-                tabBarActiveTintColor: '#007bff',
-                tabBarInactiveTintColor: '#6c757d',
-                tabBarStyle: {
-                  backgroundColor: 'white',
-                  borderTopWidth: 1,
-                  borderTopColor: '#e9ecef',
-                  height: 60,
-                  paddingBottom: 8,
-                  paddingTop: 8,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: -2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 8,
-                },
-                tabBarLabelStyle: {
-                  fontSize: 12,
-                  fontWeight: '600',
-                  marginTop: 4,
-                },
-                headerStyle: {
-                  backgroundColor: '#007bff',
-                  elevation: 4,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                },
-                headerTintColor: '#fff',
-                headerTitleStyle: {
-                  fontWeight: '700',
-                  fontSize: 20,
-                  letterSpacing: -0.3,
-                },
-              }}
-            >
-              <Tab.Screen 
-                name="Home" 
-                options={{ 
-                  tabBarLabel: 'Home',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>H</Text>
-                }}
-              >
-                {props => (
-                  <SwipeableTabWrapper>
-                    <HomeScreen {...props} />
-                  </SwipeableTabWrapper>
-                )}
-              </Tab.Screen>
-              <Tab.Screen 
-                name="Medications" 
-                options={{ 
-                  tabBarLabel: 'Medications',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>M</Text>
-                }}
-              >
-                {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
-              </Tab.Screen>
-              <Tab.Screen 
-                name="Adherence" 
-                options={{ 
-                  tabBarLabel: 'Adherence',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>A</Text>
-                }}
-              >
-                {props => (
-                  <SwipeableTabWrapper>
-                    <AdherenceScreen {...props} />
-                  </SwipeableTabWrapper>
-                )}
-              </Tab.Screen>
-              <Tab.Screen 
-                name="Lights" 
-                component={LightsStack}
-                options={{ 
-                  tabBarLabel: 'Lights',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>L</Text>
-                }}
-              />
-              <Tab.Screen 
-                name="Feedback" 
-                options={{ 
-                  tabBarLabel: 'Feedback',
-                  tabBarIcon: () => <Text style={styles.tabIcon}>F</Text>
-                }}
-              >
-                {props => (
-                  <SwipeableTabWrapper>
-                    <FeedbackScreen {...props} />
-                  </SwipeableTabWrapper>
-                )}
-              </Tab.Screen>
-            </Tab.Navigator>
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarStyle: {
+          backgroundColor: colors.tabBackground,
+          borderTopWidth: 0,
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 13,
+          fontWeight: '600',
+          marginTop: 2,
+        },
+        headerStyle: {
+          backgroundColor: colors.headerBackground,
+          elevation: 0,
+          shadowColor: 'transparent',
+          shadowOpacity: 0,
+        },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 20,
+          letterSpacing: -0.3,
+        },
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>H</Text>
+        }}
+      >
+        {props => (
+          <SwipeableTabWrapper>
+            <HomeScreen {...props} />
+          </SwipeableTabWrapper>
+        )}
+      </Tab.Screen>
+      <Tab.Screen
+        name="Medications"
+        options={{
+          tabBarLabel: 'Meds',
+          tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>M</Text>
+        }}
+      >
+        {props => <MedicationsStack {...props} lights={lights} alarmService={alarmService} />}
+      </Tab.Screen>
+      <Tab.Screen
+        name="Adherence"
+        options={{
+          tabBarLabel: 'Tracking',
+          tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>A</Text>
+        }}
+      >
+        {props => (
+          <SwipeableTabWrapper>
+            <AdherenceScreen {...props} />
+          </SwipeableTabWrapper>
+        )}
+      </Tab.Screen>
+      <Tab.Screen
+        name="Lights"
+        component={LightsStack}
+        options={{
+          tabBarLabel: 'Lights',
+          tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>L</Text>
+        }}
+      />
+      <Tab.Screen
+        name="Feedback"
+        options={{
+          tabBarLabel: 'Feedback',
+          tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>F</Text>
+        }}
+      >
+        {props => (
+          <SwipeableTabWrapper>
+            <FeedbackScreen {...props} />
+          </SwipeableTabWrapper>
+        )}
+      </Tab.Screen>
+    </Tab.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     fontSize: 18,
     textAlign: 'center',
-    color: '#666',
+    color: colors.textSecondary,
   },
   tabIcon: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#6c757d',
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.tabInactive,
+  },
+  tabIconActive: {
+    color: colors.tabActive,
   },
 });

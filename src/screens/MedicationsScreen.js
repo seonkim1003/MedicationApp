@@ -8,6 +8,7 @@ import HistoryService from '../services/HistoryService';
 import LightNameService from '../services/LightNameService';
 import GroupService from '../services/GroupService';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -316,7 +317,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
       await loadMedications();
       setIsAssignGroupModalVisible(false);
       setSelectedMedicationForGroup(null);
-      
+
       const groupName = groupId ? groups.find(g => g.id === groupId)?.name : 'Ungrouped';
       Toast.show({
         type: 'success',
@@ -402,7 +403,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
   const formatTimeDisplay = (date) => {
     if (!date) return;
-    
+
     if (is24Hour) {
       // 24-hour format
       const hours = date.getHours().toString().padStart(2, '0');
@@ -424,7 +425,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   const setAM = () => {
     const currentDate = new Date(alarmDate);
     let hours = currentDate.getHours();
-    
+
     // If currently PM (>= 12), subtract 12 to convert to AM
     if (hours >= 12) {
       hours -= 12;
@@ -437,7 +438,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   const setPM = () => {
     const currentDate = new Date(alarmDate);
     let hours = currentDate.getHours();
-    
+
     // If currently AM (< 12), add 12 to convert to PM
     if (hours < 12) {
       hours += 12;
@@ -553,7 +554,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
       const finalTime = `${hours}:${minutes}`;
 
       const alarmServiceInstance = AlarmService.getInstance();
-      
+
       const newAlarm = {
         medicationName: selectedMedication.name,
         time: finalTime,
@@ -636,7 +637,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
     try {
       const medicationManager = MedicationManager.getInstance();
       const historyService = HistoryService.getInstance();
-      
+
       // Get medication to check current count and find related alarm
       const medication = await medicationManager.getMedication(medicationId);
       if (!medication) {
@@ -649,13 +650,13 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
       }
 
       const success = await medicationManager.decreasePillCount(medicationId);
-      
+
       if (success) {
         // Record in history
         const allAlarms = await medicationManager.loadAlarms();
         const medAlarms = allAlarms.filter(a => a.medicationId === medicationId);
         const nearestAlarm = findNearestAlarm(medAlarms);
-        
+
         await historyService.recordMedicationTaken(
           medicationId,
           medication.name,
@@ -664,7 +665,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         );
 
         await loadMedications();
-        
+
         // Check for refill reminder
         const updatedMed = await medicationManager.getMedication(medicationId);
         if (updatedMed && updatedMed.pillCount <= 5) {
@@ -700,26 +701,26 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
   const findNearestAlarm = (alarms) => {
     if (!alarms || alarms.length === 0) return null;
-    
+
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
+
     // Find alarm that's closest to current time (within today's schedule)
     let nearest = null;
     let minDiff = Infinity;
-    
+
     alarms.forEach(alarm => {
       if (!alarm.isEnabled) return;
       const [hours, minutes] = alarm.time.split(':').map(Number);
       const alarmTime = hours * 60 + minutes;
       const diff = Math.abs(alarmTime - currentTime);
-      
+
       if (diff < minDiff) {
         minDiff = diff;
         nearest = alarm;
       }
     });
-    
+
     return nearest;
   };
 
@@ -739,10 +740,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             onPress: async () => {
               try {
                 const medicationManager = MedicationManager.getInstance();
-                
+
                 // Delete the alarm
                 await medicationManager.deleteAlarm(alarmId);
-                
+
                 // Update medication to remove this alarm
                 const medication = await medicationManager.getMedication(medicationId);
                 if (medication) {
@@ -753,14 +754,14 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                   };
                   await medicationManager.updateMedication(updatedMedication);
                 }
-                
+
                 // Reschedule all alarms to cancel the notification
                 if (alarmService) {
                   await alarmService.rescheduleAllMedications();
                 }
-                
+
                 await loadMedications();
-                
+
                 Toast.show({
                   type: 'success',
                   text1: 'Alarm Deleted',
@@ -802,24 +803,24 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 const historyService = HistoryService.getInstance();
                 const allAlarms = await medicationManager.loadAlarms();
                 const medicationAlarms = allAlarms.filter(alarm => alarm.medicationId === medicationId);
-                
+
                 // Delete all alarms for this medication
                 for (const alarm of medicationAlarms) {
                   await medicationManager.deleteAlarm(alarm.id);
                 }
-                
+
                 // Delete all history entries (including notes) for this medication
                 await historyService.deleteMedicationHistory(medicationId);
-                
+
                 // Delete the medication itself
                 await medicationManager.deleteMedication(medicationId);
-                
+
                 if (alarmService) {
                   await alarmService.rescheduleAllMedications();
                 }
-                
+
                 await loadMedications();
-                
+
                 Toast.show({
                   type: 'success',
                   text1: 'Medication Deleted',
@@ -862,10 +863,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   const { grouped, ungrouped } = organizeMedicationsByGroup();
   const renderMedication = (medication) => {
     const isExpanded = isMedicationExpanded(medication.id);
-    
+
     return (
       <View key={medication.id} style={styles.medicationItem}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.medicationHeader}
           onPress={() => toggleMedicationExpansion(medication.id)}
           activeOpacity={0.7}
@@ -875,35 +876,35 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             <Text style={styles.medicationName}>{medication.name}</Text>
           </View>
         </TouchableOpacity>
-        
+
         {isExpanded && (
           <>
             <View style={styles.medicationHeaderButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => openEditMedication(medication)}
               >
                 <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addAlarmButton}
                 onPress={() => openAddAlarm(medication)}
               >
                 <Text style={styles.addAlarmButtonText}>+ Alarm</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.connectLightsButton}
                 onPress={() => openConnectLights(medication)}
               >
                 <Text style={styles.connectLightsButtonText}>Light</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.groupButton}
                 onPress={() => openAssignGroup(medication)}
               >
                 <Text style={styles.groupButtonText}>Group</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => deleteMedication(medication.id)}
               >
@@ -911,13 +912,13 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
               </TouchableOpacity>
             </View>
             <Text style={styles.medicationDetails}>
-              Pills: {medication.pillCount} | 
+              Pills: {medication.pillCount} |
               Alarms: {medication.alarms?.length || 0}
               {medication.pillCount <= 5 && (
                 <Text style={styles.lowPillWarning}> - Low!</Text>
               )}
             </Text>
-            
+
             {/* Connected Lights List - Always show beneath medication details */}
             {(() => {
               // Get all unique light IDs from all alarms for this medication
@@ -927,9 +928,9 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                   alarm.lightIds.forEach(id => allLightIds.add(id));
                 }
               });
-              
+
               const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
-              
+
               return (
                 <View style={styles.connectedLightsContainer}>
                   <Text style={styles.connectedLightsLabel}>
@@ -949,7 +950,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 </View>
               );
             })()}
-            
+
             {(medication.alarms || []).map((alarm) => (
               <View key={alarm.id} style={styles.alarmItem}>
                 <View style={styles.alarmHeader}>
@@ -969,15 +970,15 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 </Text>
               </View>
             ))}
-            
+
             <View style={styles.pillButtonsContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.pillButton, styles.refillButton]}
                 onPress={() => openRefillModal(medication)}
               >
                 <Text style={styles.pillButtonText}>Refill Pills</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.pillButton}
                 onPress={() => decreasePillCount(medication.id)}
               >
@@ -1010,7 +1011,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 return (
                   <View key={group.id} style={styles.section}>
                     <View style={styles.groupContainer}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.groupHeader}
                         onPress={() => toggleGroupExpansion(group.id)}
                         activeOpacity={0.7}
@@ -1022,7 +1023,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                           <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
                         </View>
                         <View style={styles.groupHeaderButtons}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.editGroupButton}
                             onPress={(e) => {
                               e.stopPropagation();
@@ -1031,7 +1032,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                           >
                             <Text style={styles.editGroupButtonText}>Edit</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.deleteGroupButton}
                             onPress={(e) => {
                               e.stopPropagation();
@@ -1071,13 +1072,13 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
         {/* Actions */}
         <View style={styles.section}>
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={() => navigation.navigate('ScanMedication')}
-        >
-          <Text style={styles.buttonText}>Scan Medication</Text>
-        </TouchableOpacity>
-        <View style={{ height: 10 }} />
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
+            onPress={() => navigation.navigate('ScanMedication')}
+          >
+            <Text style={styles.buttonText}>Scan Medication</Text>
+          </TouchableOpacity>
+          <View style={{ height: 10 }} />
           <TouchableOpacity style={styles.button} onPress={openAddMedication}>
             <Text style={styles.buttonText}>Add Medication</Text>
           </TouchableOpacity>
@@ -1097,7 +1098,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsEditVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1176,7 +1177,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsAddVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainerFixed}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1253,7 +1254,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsAlarmVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={[styles.modalContainer, styles.modalContainerCompact]}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1262,7 +1263,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 <Text style={styles.modalTitle}>Add Alarm for {selectedMedication?.name}</Text>
 
                 <Text style={styles.label}>Time</Text>
-                
+
                 {/* Time Picker with Scrollwheel */}
                 <View style={styles.timePickerContainer}>
                   <DateTimePicker
@@ -1311,7 +1312,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                       </TouchableOpacity>
                     </>
                   )}
-                  
+
                   {/* 24-hour format toggle */}
                   <TouchableOpacity
                     style={styles.formatToggleButton}
@@ -1366,7 +1367,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsConnectLightsVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1411,11 +1412,11 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                   <TouchableOpacity style={styles.button} onPress={async () => {
                     try {
                       if (!selectedMedicationForLights) return;
-                      
+
                       const medicationManager = MedicationManager.getInstance();
                       const allAlarms = await medicationManager.loadAlarms();
                       const medicationAlarms = allAlarms.filter(a => a.medicationId === selectedMedicationForLights.id);
-                      
+
                       // Update all alarms for this medication with the selected lights
                       for (const alarm of medicationAlarms) {
                         const updatedAlarm = {
@@ -1425,12 +1426,12 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                         };
                         await medicationManager.updateAlarm(updatedAlarm);
                       }
-                      
+
                       // Reschedule alarms
                       if (alarmService) {
                         await alarmService.rescheduleAllMedications();
                       }
-                      
+
                       await loadMedications();
                       setIsConnectLightsVisible(false);
                       Toast.show({
@@ -1466,7 +1467,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsRefillVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1514,7 +1515,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsGroupModalVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1533,14 +1534,14 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 />
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.button, styles.secondaryButton]} 
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
                     onPress={() => setIsGroupModalVisible(false)}
                   >
                     <Text style={styles.buttonText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.button} 
+                  <TouchableOpacity
+                    style={styles.button}
                     onPress={saveGroup}
                   >
                     <Text style={styles.buttonText}>Create</Text>
@@ -1562,7 +1563,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsEditGroupModalVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1580,14 +1581,14 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 />
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.button, styles.secondaryButton]} 
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
                     onPress={() => setIsEditGroupModalVisible(false)}
                   >
                     <Text style={styles.buttonText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.button} 
+                  <TouchableOpacity
+                    style={styles.button}
                     onPress={updateGroup}
                   >
                     <Text style={styles.buttonText}>Save</Text>
@@ -1609,7 +1610,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         <Pressable style={styles.modalOverlay} onPress={() => setIsAssignGroupModalVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalContainer}>
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
                 keyboardShouldPersistTaps="handled"
@@ -1652,8 +1653,8 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 </View>
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity 
-                    style={[styles.button, styles.secondaryButton]} 
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
                     onPress={() => setIsAssignGroupModalVisible(false)}
                   >
                     <Text style={styles.buttonText}>Cancel</Text>
@@ -1704,7 +1705,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -1717,33 +1718,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginTop: 50,
-    color: '#6c757d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   title: {
-    fontSize: 36,
+    fontSize: 28, // Using theme size roughly
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#212529',
+    color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 18,
     marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...cardShadow,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: colors.border,
   },
   emptyText: {
     fontSize: 16,
-    color: '#adb5bd',
+    color: colors.textSecondary,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 20,
@@ -1751,17 +1748,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   medicationItem: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: colors.border,
+    ...cardShadow,
   },
   medicationHeader: {
     flexDirection: 'row',
@@ -1783,31 +1776,31 @@ const styles = StyleSheet.create({
   },
   medicationName: {
     fontSize: 26,
-    fontWeight: '600',
-    color: '#212529',
+    fontWeight: '700',
+    color: colors.textPrimary,
     letterSpacing: -0.3,
     marginLeft: 8,
     flex: 1,
   },
   medicationDetails: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 12,
     lineHeight: 24,
     fontWeight: '500',
   },
   lowPillWarning: {
     fontSize: 16,
-    color: '#dc3545',
+    color: colors.danger,
     fontWeight: '600',
   },
   alarmItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.sm,
     padding: 14,
     marginTop: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#007bff',
+    borderLeftColor: colors.primary,
   },
   alarmHeader: {
     flexDirection: 'row',
@@ -1823,8 +1816,8 @@ const styles = StyleSheet.create({
   },
   alarmTime: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#212529',
+    fontWeight: '700',
+    color: colors.textPrimary,
     letterSpacing: 0.5,
   },
   alarmColorIndicator: {
@@ -1832,11 +1825,11 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
   },
   deleteAlarmButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
+    backgroundColor: colors.danger,
+    borderRadius: borderRadius.sm,
     width: 36,
     height: 36,
     alignItems: 'center',
@@ -1853,7 +1846,7 @@ const styles = StyleSheet.create({
   },
   alarmDetails: {
     fontSize: 15,
-    color: '#6c757d',
+    color: colors.textSecondary,
     lineHeight: 22,
     fontWeight: '500',
   },
@@ -1863,47 +1856,41 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   pillButton: {
-    backgroundColor: '#007bff',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
     padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
     minHeight: 50,
-    shadowColor: '#007bff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   refillButton: {
-    backgroundColor: '#28a745',
-    shadowColor: '#28a745',
+    backgroundColor: colors.success,
   },
   pillButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   connectedLightsContainer: {
     marginTop: 12,
     marginBottom: 12,
     padding: 14,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: colors.border,
   },
   connectedLightsLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#495057',
+    fontWeight: '700',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   noLightsText: {
     fontSize: 14,
-    color: '#adb5bd',
+    color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 6,
     fontWeight: '500',
@@ -1916,37 +1903,32 @@ const styles = StyleSheet.create({
   connectedLightChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#e9ecef',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     minHeight: 36,
     justifyContent: 'center',
   },
   connectedLightChipText: {
-    color: '#495057',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '500',
   },
   button: {
-    backgroundColor: '#007bff',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 24,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 100,
     minHeight: 50,
-    shadowColor: '#007bff',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   modalOverlay: {
@@ -1956,8 +1938,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 24,
     width: '90%',
     maxWidth: 450,
@@ -1965,27 +1947,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignSelf: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    ...cardShadow,
     flexShrink: 1,
   },
   modalContainerFixed: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 24,
     width: 350,
     height: SCREEN_HEIGHT * 0.6,
     justifyContent: 'flex-start',
     alignSelf: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    ...cardShadow,
   },
   modalScrollView: {
     flexShrink: 1,
@@ -2000,28 +1974,28 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 20,
-    color: '#212529',
+    color: colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.3,
   },
   input: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 14,
     fontSize: 18,
-    color: '#212529',
+    color: colors.textPrimary,
     minHeight: 48,
   },
   label: {
     fontSize: 16,
-    color: '#495057',
+    color: colors.textPrimary,
     marginTop: 8,
     marginBottom: 8,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   colorRow: {
@@ -2035,7 +2009,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginRight: 8,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     borderWidth: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -2052,23 +2026,23 @@ const styles = StyleSheet.create({
   lightChip: {
     paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 20,
-    backgroundColor: '#e9ecef',
+    borderRadius: borderRadius.lg, // Make pills a bit rounder
+    backgroundColor: colors.cardAlt,
     marginRight: 10,
     marginBottom: 10,
     borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     minHeight: 44,
     justifyContent: 'center',
   },
   lightChipSelected: {
-    backgroundColor: '#007bff',
-    borderColor: '#007bff',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   lightChipText: {
-    color: '#495057',
+    color: colors.textPrimary,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   modalActions: {
     flexDirection: 'row',
@@ -2077,85 +2051,65 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   secondaryButton: {
-    backgroundColor: '#6c757d',
-    shadowColor: '#6c757d',
+    backgroundColor: colors.textSecondary,
+    shadowColor: colors.textSecondary,
   },
   editButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minHeight: 44,
     justifyContent: 'center',
-    shadowColor: '#3498db',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   editButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   addAlarmButton: {
-    backgroundColor: '#28a745',
-    borderRadius: 8,
+    backgroundColor: colors.success,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minHeight: 44,
     justifyContent: 'center',
-    shadowColor: '#28a745',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   addAlarmButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   connectLightsButton: {
-    backgroundColor: '#ffc107',
-    borderRadius: 8,
+    backgroundColor: colors.warning,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 16,
     paddingVertical: 8,
     minHeight: 44,
     justifyContent: 'center',
-    shadowColor: '#ffc107',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   connectLightsButtonText: {
-    color: '#212529',
+    color: '#2D3436', // Dark text on warning yellow/orange
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   deleteButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 8,
+    backgroundColor: colors.danger,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 18,
     paddingVertical: 10,
     minWidth: 90,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc3545',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   deleteButtonText: {
     fontSize: 15,
     color: 'white',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   timePickerContainer: {
     flexDirection: 'row',
@@ -2170,9 +2124,9 @@ const styles = StyleSheet.create({
   },
   timePickerLabel: {
     fontSize: 12,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     marginBottom: 5,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   pickerWheel: {
     height: 150,
@@ -2180,8 +2134,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: borderRadius.sm,
   },
   pickerScrollView: {
     height: 150,
@@ -2198,8 +2152,8 @@ const styles = StyleSheet.create({
     height: 50,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#3498db',
-    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
     zIndex: 1,
     pointerEvents: 'none',
   },
@@ -2210,29 +2164,29 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 20,
-    color: '#95a5a6',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   pickerItemTextSelected: {
     fontSize: 24,
-    color: '#2c3e50',
-    fontWeight: 'bold',
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   timeSeparator: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: colors.textPrimary,
     marginHorizontal: 10,
     marginTop: 30,
   },
   timePickerContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 10,
     marginVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: colors.border,
   },
   timePickerWheel: {
     width: '100%',
@@ -2247,53 +2201,53 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   selectedTimeContainer: {
-    backgroundColor: '#e7f3ff',
-    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.sm,
     padding: 10,
     alignItems: 'center',
     marginTop: 6,
     marginBottom: 4,
     borderWidth: 1,
-    borderColor: '#b3d9ff',
+    borderColor: colors.primary, // using primary as border for selected
   },
   selectedTimeLabel: {
     fontSize: 12,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 4,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   selectedTimeText: {
     fontSize: 20,
-    color: '#007bff',
+    color: colors.primary,
     fontWeight: '700',
     letterSpacing: 1,
   },
   ampmButton: {
-    backgroundColor: '#ecf0f1',
-    borderRadius: 8,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 24,
     paddingVertical: 10,
     marginTop: 8,
     minWidth: 60,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#bdc3c7',
+    borderColor: colors.border,
   },
   ampmButtonActive: {
-    backgroundColor: '#27ae60',
-    borderColor: '#27ae60',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   ampmButtonText: {
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   ampmButtonTextActive: {
     color: 'white',
   },
   formatToggleButton: {
-    backgroundColor: '#95a5a6',
-    borderRadius: 8,
+    backgroundColor: colors.textSecondary,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginTop: 8,
@@ -2301,7 +2255,7 @@ const styles = StyleSheet.create({
   formatToggleButtonText: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   daysRow: {
@@ -2314,25 +2268,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#ecf0f1',
+    backgroundColor: colors.cardAlt,
     marginRight: 6,
     marginBottom: 6,
     minHeight: 40,
     justifyContent: 'center',
   },
   dayChipSelected: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
   },
   dayChipText: {
-    color: '#2c3e50',
+    color: colors.textPrimary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   fab: {
     position: 'absolute',
     right: 20,
     bottom: 20,
-    backgroundColor: '#007bff',
+    backgroundColor: colors.primary, // or accent if you want it to pop more
     borderRadius: 28,
     width: 160,
     height: 56,
@@ -2345,14 +2299,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   fabText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
     marginTop: -8,
@@ -2369,7 +2323,7 @@ const styles = StyleSheet.create({
   // Group Styles
   groupContainer: {
     backgroundColor: 'transparent',
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     padding: 0,
   },
   groupHeader: {
@@ -2377,16 +2331,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 18,
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.card,
     marginBottom: 0,
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderColor: colors.border,
+    ...cardShadow,
     minHeight: 60,
   },
   groupHeaderLeft: {
@@ -2405,20 +2355,20 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginLeft: 10,
     flex: 1,
   },
   groupMedicationCount: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#6c757d',
+    fontWeight: '700',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   expandIcon: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#007bff',
+    color: colors.primary,
     marginLeft: 8,
     minWidth: 24,
   },
@@ -2429,8 +2379,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   editGroupButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minWidth: 44,
@@ -2439,13 +2389,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editGroupButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   deleteGroupButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 8,
+    backgroundColor: colors.danger,
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minWidth: 44,
@@ -2462,25 +2412,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   groupButton: {
-    backgroundColor: '#9b59b6',
-    borderRadius: 8,
+    backgroundColor: '#9b59b6', // or any static color for generic groups as long as the content stands out
+    borderRadius: borderRadius.sm,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minHeight: 44,
     justifyContent: 'center',
-    shadowColor: '#9b59b6',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   groupButtonText: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   groupSelectionContainer: {
     marginBottom: 10,
@@ -2488,17 +2433,17 @@ const styles = StyleSheet.create({
   groupOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.sm,
     padding: 14,
     marginBottom: 10,
     borderWidth: 2,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
     minHeight: 52,
   },
   groupOptionSelected: {
-    backgroundColor: '#e7f3ff',
-    borderColor: '#007bff',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
     borderWidth: 2,
   },
   groupColorDot: {
@@ -2511,17 +2456,17 @@ const styles = StyleSheet.create({
   },
   groupOptionText: {
     fontSize: 18,
-    color: '#495057',
-    fontWeight: '500',
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   groupOptionTextSelected: {
-    color: '#007bff',
+    color: colors.primary,
     fontWeight: '700',
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
 });

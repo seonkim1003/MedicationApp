@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Share } from 'react-native';
 import FeedbackService from '../services/FeedbackService';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 export default function ViewFeedbackScreen({ navigation }) {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -255,7 +256,7 @@ ${feedbackText}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -267,32 +268,28 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     marginTop: 50,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     marginBottom: 16,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   statsRow: {
     flexDirection: 'row',
@@ -305,24 +302,24 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#3498db',
+    color: colors.primary,
     marginBottom: 6,
   },
   statLabel: {
-    fontSize: 16,
-    color: '#6c757d',
+    fontSize: 15,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   ratingsBreakdown: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1.5,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   breakdownTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   ratingRow: {
@@ -333,13 +330,13 @@ const styles = StyleSheet.create({
   },
   ratingLabel: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   ratingCount: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -347,8 +344,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   exportButton: {
-    backgroundColor: '#28a745',
-    borderRadius: 10,
+    backgroundColor: colors.success,
+    borderRadius: borderRadius.md,
     padding: 14,
     flex: 1,
     alignItems: 'center',
@@ -356,13 +353,13 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   exportButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   clearButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
+    backgroundColor: colors.danger,
+    borderRadius: borderRadius.md,
     padding: 14,
     flex: 1,
     alignItems: 'center',
@@ -370,17 +367,17 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   clearButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   feedbackItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 14,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   feedbackHeader: {
     flexDirection: 'row',
@@ -393,7 +390,7 @@ const styles = StyleSheet.create({
   },
   feedbackDate: {
     fontSize: 15,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 6,
     fontWeight: '500',
   },
@@ -403,14 +400,14 @@ const styles = StyleSheet.create({
   },
   star: {
     fontSize: 18,
-    color: '#ddd',
+    color: colors.border,
   },
   starFilled: {
-    color: '#ffc107',
+    color: colors.warning,
   },
   deleteButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 10,
+    backgroundColor: colors.danger,
+    borderRadius: borderRadius.md,
     width: 36,
     height: 36,
     alignItems: 'center',
@@ -420,26 +417,26 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   deleteButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
   feedbackEmail: {
-    fontSize: 16,
-    color: '#6c757d',
+    fontSize: 15,
+    color: colors.textSecondary,
     marginBottom: 10,
     fontStyle: 'italic',
     fontWeight: '500',
   },
   feedbackText: {
     fontSize: 16,
-    color: '#2c3e50',
+    color: colors.textPrimary,
     lineHeight: 24,
     fontWeight: '500',
   },
   emptyText: {
     fontSize: 16,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 24,

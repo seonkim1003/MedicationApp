@@ -4,6 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import HistoryService from '../services/HistoryService';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 export default function NotesScreen() {
   const [notes, setNotes] = useState([]);
@@ -21,12 +22,12 @@ export default function NotesScreen() {
       setIsLoading(true);
       const historyService = HistoryService.getInstance();
       const allHistory = await historyService.loadHistory();
-      
+
       // Filter to only entries with notes
       const notesWithData = allHistory
         .filter(entry => entry.note && entry.note.trim().length > 0)
         .sort((a, b) => moment(b.takenAt).diff(moment(a.takenAt)));
-      
+
       setNotes(notesWithData);
     } catch (error) {
       console.error('Error loading notes:', error);
@@ -52,7 +53,7 @@ export default function NotesScreen() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Symptom Tracking & Notes</Text>
-        
+
         {notes.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>Note</Text>
@@ -125,7 +126,7 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -137,27 +138,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     marginTop: 50,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   emptyContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 40,
     alignItems: 'center',
     marginTop: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   emptyIcon: {
     fontSize: 64,
@@ -166,12 +163,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -183,59 +180,46 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   statValue: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#17a2b8',
+    color: colors.primary,
     marginBottom: 6,
   },
   statLabel: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 16,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   notesList: {
     gap: 12,
   },
   noteItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#17a2b8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderLeftColor: colors.primary,
   },
   noteItemHeader: {
     flexDirection: 'row',
@@ -249,17 +233,17 @@ const styles = StyleSheet.create({
   noteMedicationName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   noteDate: {
-    fontSize: 14,
-    color: '#6c757d',
+    fontSize: 15,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   noteTime: {
-    fontSize: 14,
-    color: '#6c757d',
+    fontSize: 15,
+    color: colors.textSecondary,
     fontWeight: '600',
     marginLeft: 8,
   },
@@ -268,7 +252,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     fontSize: 16,
-    color: '#495057',
+    color: colors.textPrimary,
     lineHeight: 24,
     fontWeight: '500',
   },
@@ -278,34 +262,34 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
   },
   statusBadgeOnTime: {
-    backgroundColor: '#d4edda',
+    backgroundColor: colors.successLight,
   },
   statusBadgeLate: {
-    backgroundColor: '#fff3cd',
+    backgroundColor: colors.warningBackground,
   },
   statusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#155724',
+    color: colors.textPrimary, // Can also be specific to success/warning texts
   },
   refreshButton: {
-    backgroundColor: '#17a2b8',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
   },
   refreshButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: 'bold',
   },

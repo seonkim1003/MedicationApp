@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
 import FeedbackService from '../services/FeedbackService';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 export default function FeedbackScreen({ navigation }) {
   const [feedback, setFeedback] = useState('');
@@ -122,8 +123,8 @@ export default function FeedbackScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.viewFeedbackButton} 
+          <TouchableOpacity
+            style={styles.viewFeedbackButton}
             onPress={() => navigation.navigate('ViewFeedback')}
           >
             <Text style={styles.viewFeedbackButtonText}>View All Feedback</Text>
@@ -147,7 +148,7 @@ export default function FeedbackScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -156,39 +157,35 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 10,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   subtitle: {
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 24,
-    color: '#6c757d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 14,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   sectionSubtitle: {
     fontSize: 15,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 10,
     fontWeight: '500',
   },
@@ -207,85 +204,75 @@ const styles = StyleSheet.create({
   },
   star: {
     fontSize: 44,
-    color: '#ddd',
+    color: colors.border,
   },
   starFilled: {
-    color: '#ffc107',
+    color: colors.warning,
   },
   ratingText: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginTop: 10,
   },
   feedbackInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
     padding: 14,
     fontSize: 18,
-    color: '#212529',
+    color: colors.textPrimary,
     minHeight: 140,
     textAlignVertical: 'top',
   },
   emailInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
     padding: 14,
     fontSize: 18,
-    color: '#212529',
+    color: colors.textPrimary,
     marginTop: 10,
     minHeight: 48,
   },
   submitButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
-    shadowColor: '#3498db',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
   submitButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
   viewFeedbackButton: {
-    backgroundColor: '#6c757d',
-    borderRadius: 12,
+    backgroundColor: colors.textSecondary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
-    shadowColor: '#6c757d',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
   },
   viewFeedbackButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: '700',
   },
   infoText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontWeight: '700',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   infoItem: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     marginBottom: 6,
     lineHeight: 24,
     fontWeight: '500',

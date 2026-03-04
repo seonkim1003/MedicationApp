@@ -5,6 +5,7 @@ import HistoryService from '../services/HistoryService';
 import CircularTimer from '../components/CircularTimer';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -22,9 +23,9 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     loadDashboard();
-    
+
     const dashboardInterval = setInterval(loadDashboard, 30000);
-    
+
     const alarmUpdateInterval = setInterval(async () => {
       try {
         const medicationManager = MedicationManager.getInstance();
@@ -36,7 +37,7 @@ export default function HomeScreen({ navigation }) {
         console.error('Error updating next alarm time:', error);
       }
     }, 5000);
-    
+
     return () => {
       clearInterval(dashboardInterval);
       clearInterval(alarmUpdateInterval);
@@ -51,16 +52,16 @@ export default function HomeScreen({ navigation }) {
 
       const medications = await medicationManager.loadMedications();
       const allAlarms = await medicationManager.loadAlarms();
-      
+
       setTotalMedications(medications.length);
 
       const today = moment();
       const dayOfWeek = today.day() === 0 ? 7 : today.day();
-      
+
       const todayMeds = [];
       medications.forEach(med => {
-        const medAlarms = allAlarms.filter(a => 
-          a.medicationId === med.id && 
+        const medAlarms = allAlarms.filter(a =>
+          a.medicationId === med.id &&
           a.isEnabled &&
           a.daysOfWeek.includes(dayOfWeek)
         );
@@ -79,7 +80,7 @@ export default function HomeScreen({ navigation }) {
         const timeB = moment(b.time, 'HH:mm');
         return timeA.diff(timeB);
       });
-      
+
       setTodayMedications(todayMeds);
 
       const now = moment();
@@ -95,7 +96,7 @@ export default function HomeScreen({ navigation }) {
           return todayAlarm.isAfter(now);
         })
         .slice(0, 3);
-      
+
       setUpcomingAlarms(upcoming);
 
       const nextAlarm = calculateNextAlarmTime(medications, allAlarms);
@@ -117,13 +118,13 @@ export default function HomeScreen({ navigation }) {
         const yesterday = moment().subtract(1, 'day');
         const yesterdayDayOfWeek = yesterday.day() === 0 ? 7 : yesterday.day();
         const todayDayOfWeek = today.day() === 0 ? 7 : today.day();
-        
+
         const allHistory = await historyService.loadHistory();
-        
+
         const yesterdayAlarms = [];
         medications.forEach(med => {
-          const medAlarms = allAlarms.filter(a => 
-            a.medicationId === med.id && 
+          const medAlarms = allAlarms.filter(a =>
+            a.medicationId === med.id &&
             a.isEnabled &&
             a.daysOfWeek.includes(yesterdayDayOfWeek)
           );
@@ -134,7 +135,7 @@ export default function HomeScreen({ navigation }) {
             });
           });
         });
-        
+
         const yesterdayTaken = yesterdayAlarms.filter(alarm => {
           try {
             const alarmTime = moment(alarm.time, 'HH:mm');
@@ -160,7 +161,7 @@ export default function HomeScreen({ navigation }) {
             return false;
           }
         });
-        
+
         setYesterdayStatus({
           total: yesterdayAlarms.length,
           taken: yesterdayTaken.length,
@@ -194,7 +195,7 @@ export default function HomeScreen({ navigation }) {
             return false;
           }
         });
-        
+
         const todayRemaining = todayAlarms.filter(alarm => {
           try {
             const alarmTime = moment(alarm.time, 'HH:mm');
@@ -208,7 +209,7 @@ export default function HomeScreen({ navigation }) {
             return false;
           }
         });
-        
+
         const todayMissed = todayAlarms.filter(alarm => {
           try {
             const alarmTime = moment(alarm.time, 'HH:mm');
@@ -236,7 +237,7 @@ export default function HomeScreen({ navigation }) {
             return false;
           }
         });
-        
+
         setTodayStatus({
           total: todayAlarms.length,
           taken: todayTaken.length,
@@ -263,17 +264,17 @@ export default function HomeScreen({ navigation }) {
   };
 
   const calculateNextAlarmTime = (medications, allAlarms) => {
-      try {
-        const now = moment();
-        const futureAlarms = [];
+    try {
+      const now = moment();
+      const futureAlarms = [];
 
-        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         const checkDate = moment(now).add(dayOffset, 'days');
         const dayOfWeek = checkDate.day() === 0 ? 7 : checkDate.day();
 
         medications.forEach(med => {
-          const medAlarms = allAlarms.filter(a => 
-            a.medicationId === med.id && 
+          const medAlarms = allAlarms.filter(a =>
+            a.medicationId === med.id &&
             a.isEnabled &&
             a.daysOfWeek.includes(dayOfWeek)
           );
@@ -301,7 +302,7 @@ export default function HomeScreen({ navigation }) {
 
       futureAlarms.sort((a, b) => a.valueOf() - b.valueOf());
       const nextAlarm = futureAlarms[0];
-      
+
       return nextAlarm.toISOString();
     } catch (error) {
       console.error('Error calculating next alarm:', error);
@@ -313,7 +314,7 @@ export default function HomeScreen({ navigation }) {
     try {
       const historyService = HistoryService.getInstance();
       const medicationManager = MedicationManager.getInstance();
-      
+
       if (medication.pillCount <= 0) {
         Toast.show({
           type: 'warning',
@@ -324,13 +325,13 @@ export default function HomeScreen({ navigation }) {
       }
 
       const success = await medicationManager.decreasePillCount(medication.id);
-      
+
       if (success) {
         await historyService.recordMedicationTaken(
           medication.id,
           medication.name
         );
-        
+
         Toast.show({
           type: 'success',
           text1: 'Medication Taken',
@@ -389,7 +390,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Medication Status</Text>
-          
+
           <View style={styles.adherenceCard}>
             <View style={styles.adherenceHeader}>
               <Text style={styles.adherenceDayTitle}>Yesterday</Text>
@@ -433,17 +434,17 @@ export default function HomeScreen({ navigation }) {
                 <View style={[
                   styles.adherenceBadge,
                   todayStatus.missed === 0 && todayStatus.remaining === 0
-                    ? styles.adherenceBadgeSuccess 
+                    ? styles.adherenceBadgeSuccess
                     : todayStatus.missed > 0
-                    ? styles.adherenceBadgeWarning
-                    : styles.adherenceBadgeInfo
+                      ? styles.adherenceBadgeWarning
+                      : styles.adherenceBadgeInfo
                 ]}>
                   <Text style={styles.adherenceBadgeText}>
                     {todayStatus.missed === 0 && todayStatus.remaining === 0
                       ? 'All Done'
                       : todayStatus.missed > 0
-                      ? `${todayStatus.missed} Missed`
-                      : `${todayStatus.remaining} Remaining`}
+                        ? `${todayStatus.missed} Missed`
+                        : `${todayStatus.remaining} Remaining`}
                   </Text>
                 </View>
               )}
@@ -532,7 +533,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -544,27 +545,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     marginTop: 50,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   timerSection: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 24,
     marginBottom: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   quickStatsContainer: {
     flexDirection: 'row',
@@ -574,49 +571,41 @@ const styles = StyleSheet.create({
   },
   quickStatCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
     minHeight: 100,
   },
   quickStatValue: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#3498db',
+    fontSize: 38,
+    fontWeight: '700',
+    color: colors.primary,
     marginBottom: 6,
   },
   quickStatLabel: {
-    fontSize: 16,
-    color: '#7f8c8d',
+    fontSize: 15,
+    color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '600',
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   alertSection: {
-    backgroundColor: '#fff3cd',
+    backgroundColor: colors.warningLight,
     borderLeftWidth: 5,
-    borderLeftColor: '#f39c12',
+    borderLeftColor: colors.accent,
   },
   alertTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#856404',
+    color: colors.warningText,
     marginBottom: 10,
   },
   alertItem: {
@@ -624,22 +613,22 @@ const styles = StyleSheet.create({
   },
   alertText: {
     fontSize: 16,
-    color: '#856404',
+    color: colors.warningText,
     fontWeight: '600',
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     marginBottom: 16,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   medicationCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   medicationCardHeader: {
     flexDirection: 'row',
@@ -653,27 +642,27 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   takeButton: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: colors.success,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 20,
+    borderRadius: borderRadius.xl,
     minWidth: 100,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   takeButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },
   medicationName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#34495e',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   medicationDetails: {
@@ -688,41 +677,41 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 15,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   emptyText: {
     fontSize: 16,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 24,
     fontWeight: '600',
   },
   button: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     minHeight: 50,
     justifyContent: 'center',
   },
   buttonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: 'bold',
   },
   adherenceCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   adherenceCardToday: {
-    backgroundColor: '#e7f3ff',
-    borderLeftColor: '#007bff',
+    backgroundColor: colors.primaryLight,
+    borderLeftColor: colors.primaryDark,
   },
   adherenceHeader: {
     flexDirection: 'row',
@@ -733,26 +722,26 @@ const styles = StyleSheet.create({
   adherenceDayTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   adherenceBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     minHeight: 28,
     justifyContent: 'center',
   },
   adherenceBadgeSuccess: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: colors.success,
   },
   adherenceBadgeWarning: {
-    backgroundColor: '#f39c12',
+    backgroundColor: colors.accent,
   },
   adherenceBadgeInfo: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
   },
   adherenceBadgeText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -761,7 +750,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   adherenceStatItem: {
     alignItems: 'center',
@@ -769,39 +758,39 @@ const styles = StyleSheet.create({
   adherenceStatValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2ecc71',
+    color: colors.success,
     marginBottom: 4,
   },
   adherenceStatValueMissed: {
-    color: '#e74c3c',
+    color: colors.danger,
   },
   adherenceStatValueRemaining: {
-    color: '#3498db',
+    color: colors.primary,
   },
   adherenceStatLabel: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   adherenceEmptyText: {
     fontSize: 15,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 8,
   },
   musicInfoContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: colors.border,
   },
   musicName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212529',
+    color: colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -812,20 +801,20 @@ const styles = StyleSheet.create({
   },
   musicButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
     minHeight: 44,
   },
   musicButtonSecondary: {
-    backgroundColor: '#6c757d',
+    backgroundColor: colors.textSecondary,
   },
   musicButtonDanger: {
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.danger,
   },
   musicButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -4,6 +4,7 @@ import Slider from '@react-native-community/slider';
 import SmartLightService from '../services/SmartLightService';
 import LightNameService from '../services/LightNameService';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 export default function LightDetailScreen({ route, navigation }) {
   const { light: initialLight } = route.params;
@@ -20,7 +21,7 @@ export default function LightDetailScreen({ route, navigation }) {
   const smartLightService = SmartLightService.getInstance();
 
   const COLOR_PRESETS = [
-    '#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', 
+    '#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF',
     '#4B0082', '#9400D3', '#FF6B6B', '#4ECDC4', '#45B7D1',
     '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
     '#FFFFFF', '#FFD700', '#C0C0C0', '#000000'
@@ -29,7 +30,7 @@ export default function LightDetailScreen({ route, navigation }) {
   useEffect(() => {
     // Load custom name on mount
     loadDisplayName();
-    
+
     // Refresh light state when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
       refreshLight();
@@ -133,11 +134,11 @@ export default function LightDetailScreen({ route, navigation }) {
   const handleBrightnessChange = async (value) => {
     const newBrightness = Math.round(value);
     setBrightness(newBrightness);
-    
+
     // Debounce the API call
     if (isUpdating) return;
     setIsUpdating(true);
-    
+
     setTimeout(async () => {
       try {
         const success = await smartLightService.setDeviceBrightness(light.id, newBrightness);
@@ -200,14 +201,14 @@ export default function LightDetailScreen({ route, navigation }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{displayName}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.renameButton}
             onPress={openRenameModal}
           >
             <Text style={styles.renameButtonText}>Rename</Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Status</Text>
           <View style={styles.statusRow}>
@@ -224,8 +225,8 @@ export default function LightDetailScreen({ route, navigation }) {
               value={isOn}
               onValueChange={handlePowerToggle}
               disabled={isUpdating || !light.isOnline}
-              trackColor={{ false: '#767577', true: '#3498db' }}
-              thumbColor={isOn ? '#fff' : '#f4f3f4'}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={isOn ? colors.primary : '#f4f3f4'}
             />
           </View>
         </View>
@@ -239,9 +240,9 @@ export default function LightDetailScreen({ route, navigation }) {
             value={brightness}
             onValueChange={handleBrightnessChange}
             disabled={isUpdating || !light.isOnline || !isOn}
-            minimumTrackTintColor="#3498db"
-            maximumTrackTintColor="#ecf0f1"
-            thumbTintColor="#3498db"
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.primary}
           />
         </View>
 
@@ -251,7 +252,7 @@ export default function LightDetailScreen({ route, navigation }) {
             <View style={[styles.colorPreview, { backgroundColor: color }]} />
             <Text style={styles.colorText}>{color}</Text>
           </View>
-          
+
           <Text style={styles.label}>Color Presets</Text>
           <View style={styles.colorRow}>
             {COLOR_PRESETS.map((presetColor) => (
@@ -270,8 +271,8 @@ export default function LightDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.button} 
+          <TouchableOpacity
+            style={styles.button}
             onPress={refreshLight}
             disabled={isUpdating}
           >
@@ -292,7 +293,7 @@ export default function LightDetailScreen({ route, navigation }) {
             <View style={styles.modalContainer}>
               <Text style={styles.modalTitle}>Rename Light</Text>
               <Text style={styles.modalSubtitle}>Enter a custom name (e.g., Bedroom, Bathroom, Kitchen)</Text>
-              
+
               <Text style={styles.label}>Light Name</Text>
               <TextInput
                 placeholder="Enter light name"
@@ -303,14 +304,14 @@ export default function LightDetailScreen({ route, navigation }) {
               />
 
               <View style={styles.modalActions}>
-                <TouchableOpacity 
-                  style={[styles.button, styles.secondaryButton]} 
+                <TouchableOpacity
+                  style={[styles.button, styles.secondaryButton]}
                   onPress={() => setIsRenameModalVisible(false)}
                 >
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.button} 
+                <TouchableOpacity
+                  style={styles.button}
                   onPress={handleRename}
                 >
                   <Text style={styles.buttonText}>Save</Text>
@@ -327,7 +328,7 @@ export default function LightDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -344,23 +345,23 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '700',
     flex: 1,
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginRight: 12,
   },
   renameButton: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 20,
     paddingVertical: 12,
     minHeight: 48,
     justifyContent: 'center',
   },
   renameButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
@@ -369,47 +370,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 24,
     width: '90%',
     maxWidth: 450,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    ...cardShadow,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 10,
-    color: '#2c3e50',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '500',
   },
   label: {
     fontSize: 16,
-    color: '#34495e',
+    color: colors.textPrimary,
     marginBottom: 10,
+    marginTop: 8,
     fontWeight: '600',
   },
   input: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardAlt,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 20,
     fontSize: 18,
-    color: '#212529',
+    color: colors.textPrimary,
     minHeight: 48,
   },
   modalActions: {
@@ -419,24 +417,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   secondaryButton: {
-    backgroundColor: '#6c757d',
+    backgroundColor: colors.textSecondary,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 14,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   statusRow: {
     flexDirection: 'row',
@@ -444,7 +438,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 20,
-    color: '#34495e',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   controlRow: {
@@ -455,7 +449,7 @@ const styles = StyleSheet.create({
   },
   controlLabel: {
     fontSize: 20,
-    color: '#34495e',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   slider: {
@@ -470,19 +464,12 @@ const styles = StyleSheet.create({
   colorPreview: {
     width: '100%',
     height: 64,
-    borderRadius: 10,
+    borderRadius: borderRadius.md,
     marginBottom: 12,
   },
   colorText: {
     fontSize: 16,
-    color: '#7f8c8d',
-    fontWeight: '600',
-  },
-  label: {
-    fontSize: 16,
-    color: '#34495e',
-    marginTop: 8,
-    marginBottom: 8,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   colorRow: {
@@ -498,25 +485,25 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
     borderWidth: 2.5,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   colorDotSelected: {
     borderWidth: 3,
-    borderColor: '#3498db',
+    borderColor: colors.primary,
     transform: [{ scale: 1.1 }],
   },
   button: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 });
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import SmartLightService from '../services/SmartLightService';
 import LightNameService from '../services/LightNameService';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 export default function LightsScreen({ navigation }) {
   const [lights, setLights] = useState([]);
@@ -20,7 +21,7 @@ export default function LightsScreen({ navigation }) {
       setIsLoading(true);
       const smartLightService = SmartLightService.getInstance();
       // Use reloadLightDiscovery for forced refresh, otherwise use regular getSmartLights
-      const { lights: loadedLights, error } = forceReload 
+      const { lights: loadedLights, error } = forceReload
         ? await smartLightService.reloadLightDiscovery()
         : await smartLightService.getSmartLights();
       if (error) {
@@ -70,11 +71,11 @@ export default function LightsScreen({ navigation }) {
               >
                 <View style={styles.lightHeader}>
                   <Text style={styles.lightName}>{light.displayName || light.name}</Text>
-                  <View style={[styles.statusIndicator, { backgroundColor: light.isOnline ? '#4CAF50' : '#F44336' }]} />
+                  <View style={[styles.statusIndicator, { backgroundColor: light.isOnline ? colors.success : colors.danger }]} />
                 </View>
                 <Text style={styles.lightDetails}>
-                  Status: {light.isOnline ? 'Online' : 'Offline'} | 
-                  Power: {light.isOn ? 'ON' : 'OFF'} | 
+                  Status: {light.isOnline ? 'Online' : 'Offline'} |
+                  Power: {light.isOn ? 'ON' : 'OFF'} |
                   Brightness: {light.brightness}%
                 </Text>
                 <View style={[styles.colorPreview, { backgroundColor: light.color }]} />
@@ -96,7 +97,7 @@ export default function LightsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -108,38 +109,34 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     marginTop: 50,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   emptyText: {
     fontSize: 16,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 24,
     fontWeight: '500',
   },
   lightItem: {
-    backgroundColor: '#ecf0f1',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     minHeight: 90,
@@ -151,9 +148,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   lightName: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#2c3e50',
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
     flex: 1,
   },
   statusIndicator: {
@@ -163,26 +160,26 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   lightDetails: {
-    fontSize: 16,
-    color: '#7f8c8d',
+    fontSize: 15,
+    color: colors.textSecondary,
     marginBottom: 10,
     fontWeight: '500',
   },
   colorPreview: {
     width: '100%',
     height: 24,
-    borderRadius: 6,
+    borderRadius: borderRadius.sm,
   },
   button: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     minHeight: 50,
     justifyContent: 'center',
   },
   buttonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: 'bold',
   },

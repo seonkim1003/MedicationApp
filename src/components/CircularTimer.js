@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { colors } from '../theme';
 
 const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
   const [timeUntil, setTimeUntil] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -73,7 +74,7 @@ const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#e0e0e0"
+            stroke={colors.border}
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -81,7 +82,7 @@ const CircularTimer = ({ nextAlarmTime, size = 120, strokeWidth = 8 }) => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#007bff"
+            stroke={colors.primary}
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}
@@ -119,19 +120,19 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#212529',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   labelText: {
     fontSize: 16,
-    color: '#6c757d',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 6,
     fontWeight: '600',
   },
   noAlarmText: {
     fontSize: 18,
-    color: '#6c757d',
+    color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '600',
   },

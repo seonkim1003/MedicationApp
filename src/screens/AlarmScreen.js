@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -28,7 +29,7 @@ const AlarmScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     playAlarmSound();
-    
+
     // Start fade-in animation
     Animated.parallel([
       Animated.timing(uiOpacity, {
@@ -42,7 +43,7 @@ const AlarmScreen = ({ route, navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-    
+
     // Prevent back button from dismissing the alarm on Android only
     let backHandler = null;
     if (Platform.OS === 'android') {
@@ -168,7 +169,7 @@ const AlarmScreen = ({ route, navigation }) => {
         try {
           const medicationManager = MedicationManager.getInstance();
           const historyService = HistoryService.getInstance();
-          
+
           // Get medication to check if it exists
           const medication = await medicationManager.getMedication(medicationId);
           if (medication) {
@@ -180,17 +181,17 @@ const AlarmScreen = ({ route, navigation }) => {
               alarmTime,
               note.trim()
             );
-            
+
             Toast.show({
               type: 'success',
               text1: 'Note Added',
               text2: 'Your note has been saved',
             });
-            
+
             // Clear the note input
             setNote('');
             setShowNoteInput(false);
-            
+
             console.log(`Note added for ${medicationName || medication.name}`);
           }
         } catch (noteError) {
@@ -217,13 +218,13 @@ const AlarmScreen = ({ route, navigation }) => {
         try {
           const medicationManager = MedicationManager.getInstance();
           const historyService = HistoryService.getInstance();
-          
+
           // Get medication to check if it exists and has pills
           const medication = await medicationManager.getMedication(medicationId);
           if (medication && medication.pillCount > 0) {
             // Decrease pill count
             const success = await medicationManager.decreasePillCount(medicationId);
-            
+
             if (success) {
               // Record in history (without note - note is saved separately via Add Note button)
               await historyService.recordMedicationTaken(
@@ -232,7 +233,7 @@ const AlarmScreen = ({ route, navigation }) => {
                 alarmId,
                 alarmTime
               );
-              
+
               console.log(`Medication taken from alarm: ${medicationName || medication.name}`);
             } else {
               console.warn(`Cannot decrease pill count for ${medicationName || medication.name}: already at 0`);
@@ -252,7 +253,7 @@ const AlarmScreen = ({ route, navigation }) => {
           const relatedNotifications = allNotifications.filter(
             (n) => n && n.request && n.request.content && n.request.content.data && n.request.content.data.alarmId === alarmId
           );
-          
+
           // Note: We can't cancel recurring notifications easily, but the sound is stopped
           // The notification system will handle the sound automatically
         } catch (notificationError) {
@@ -284,114 +285,114 @@ const AlarmScreen = ({ route, navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={styles.fallbackBackground} />
-      <Animated.View 
+      <Animated.View
         style={[
           styles.backgroundOverlay,
           { opacity: redOverlayOpacity }
-        ]} 
+        ]}
       />
-      <Animated.View 
+      <Animated.View
         style={[
           styles.uiContainer,
           { opacity: uiOpacity }
         ]}
       >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <View style={[styles.alarmIcon, showNoteInput && styles.alarmIconSmall]}>
-            <Text style={[styles.alarmIconText, showNoteInput && styles.alarmIconTextSmall]}>!</Text>
-          </View>
-          
-          <Text style={[styles.title, showNoteInput && styles.titleSmall]}>TAKE MEDICATION NOW</Text>
-          
-          {medicationName && (
-            <Text style={[styles.medicationName, showNoteInput && styles.medicationNameSmall]}>
-              {medicationName}
-            </Text>
-          )}
-          
-          {alarmTime && (
-            <Text style={[styles.alarmTime, showNoteInput && styles.alarmTimeSmall]}>
-              Scheduled for {formatTime(alarmTime)}
-            </Text>
-          )}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            <View style={[styles.alarmIcon, showNoteInput && styles.alarmIconSmall]}>
+              <Text style={[styles.alarmIconText, showNoteInput && styles.alarmIconTextSmall]}>!</Text>
+            </View>
 
-          <Text style={[styles.instruction, showNoteInput && styles.instructionSmall]}>
-            TAKE YOUR MEDICATION IMMEDIATELY
-          </Text>
+            <Text style={[styles.title, showNoteInput && styles.titleSmall]}>TAKE MEDICATION NOW</Text>
 
-          {/* Note Input Section */}
-          <View style={styles.noteSection}>
-            <TouchableOpacity 
-              style={styles.noteToggleButton}
-              onPress={() => setShowNoteInput(!showNoteInput)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.noteToggleText}>
-                {showNoteInput ? 'X Hide Note' : '+ Add Note (Symptoms/Tracking)'}
+            {medicationName && (
+              <Text style={[styles.medicationName, showNoteInput && styles.medicationNameSmall]}>
+                {medicationName}
               </Text>
-            </TouchableOpacity>
-            
-          {showNoteInput && (
-            <View style={styles.noteInputContainer}>
-              <Text style={styles.noteLabel}>Track symptoms or observations:</Text>
-              <TextInput
-                style={styles.noteInput}
-                placeholder="e.g., Feeling better, slight headache, no side effects..."
-                placeholderTextColor="#95a5a6"
-                value={note}
-                onChangeText={setNote}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-                maxLength={500}
-                autoFocus={true}
-              />
-              <Text style={styles.noteCharCount}>{note.length}/500</Text>
-              <TouchableOpacity 
-                style={[styles.addNoteButton, !note.trim() && styles.addNoteButtonDisabled]}
-                onPress={handleAddNote}
-                disabled={!note.trim()}
+            )}
+
+            {alarmTime && (
+              <Text style={[styles.alarmTime, showNoteInput && styles.alarmTimeSmall]}>
+                Scheduled for {formatTime(alarmTime)}
+              </Text>
+            )}
+
+            <Text style={[styles.instruction, showNoteInput && styles.instructionSmall]}>
+              TAKE YOUR MEDICATION IMMEDIATELY
+            </Text>
+
+            {/* Note Input Section */}
+            <View style={styles.noteSection}>
+              <TouchableOpacity
+                style={styles.noteToggleButton}
+                onPress={() => setShowNoteInput(!showNoteInput)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.noteToggleText}>
+                  {showNoteInput ? 'X Hide Note' : '+ Add Note (Symptoms/Tracking)'}
+                </Text>
+              </TouchableOpacity>
+
+              {showNoteInput && (
+                <View style={styles.noteInputContainer}>
+                  <Text style={styles.noteLabel}>Track symptoms or observations:</Text>
+                  <TextInput
+                    style={styles.noteInput}
+                    placeholder="e.g., Feeling better, slight headache, no side effects..."
+                    placeholderTextColor="#95a5a6"
+                    value={note}
+                    onChangeText={setNote}
+                    multiline
+                    numberOfLines={6}
+                    textAlignVertical="top"
+                    maxLength={500}
+                    autoFocus={true}
+                  />
+                  <Text style={styles.noteCharCount}>{note.length}/500</Text>
+                  <TouchableOpacity
+                    style={[styles.addNoteButton, !note.trim() && styles.addNoteButtonDisabled]}
+                    onPress={handleAddNote}
+                    disabled={!note.trim()}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.addNoteButtonText}>Add Note</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.snoozeButton, showNoteInput && styles.buttonSmall]}
+                onPress={handleSnooze}
                 activeOpacity={0.8}
               >
-                <Text style={styles.addNoteButtonText}>Add Note</Text>
+                <Text style={[styles.snoozeButtonText, showNoteInput && styles.buttonTextSmall]}>
+                  Snooze (5 min)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.turnOffButton, showNoteInput && styles.buttonSmall]}
+                onPress={handleTurnOff}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.turnOffButtonText, showNoteInput && styles.buttonTextSmall]}>
+                  I took the medication
+                </Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={[styles.snoozeButton, showNoteInput && styles.buttonSmall]} 
-              onPress={handleSnooze}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.snoozeButtonText, showNoteInput && styles.buttonTextSmall]}>
-                Snooze (5 min)
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.turnOffButton, showNoteInput && styles.buttonSmall]} 
-              onPress={handleTurnOff}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.turnOffButtonText, showNoteInput && styles.buttonTextSmall]}>
-                I took the medication
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT,
-    backgroundColor: '#a30000',
+    backgroundColor: colors.danger,
   },
   backgroundOverlay: {
     position: 'absolute',
@@ -421,7 +422,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(163, 0, 0, 0.7)',
+    backgroundColor: 'rgba(231, 111, 81, 0.7)',
   },
   uiContainer: {
     flex: 1,
@@ -439,7 +440,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    borderRadius: 20,
+    borderRadius: borderRadius.lg,
     padding: 24,
     width: '100%',
     maxWidth: 500,
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+    backgroundColor: 'rgba(231, 111, 81, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
@@ -530,8 +531,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   snoozeButton: {
-    backgroundColor: '#ffc107',
-    borderRadius: 12,
+    backgroundColor: colors.warning,
+    borderRadius: borderRadius.md,
     paddingVertical: 18,
     paddingHorizontal: 32,
     width: '100%',
@@ -545,13 +546,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   snoozeButtonText: {
-    color: '#212529',
+    color: '#2D3436', // dark text for warning bg
     fontSize: 22,
     fontWeight: '700',
   },
   turnOffButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 12,
+    backgroundColor: colors.primary, // using primary instead of danger for 'took med'
+    borderRadius: borderRadius.md,
     paddingVertical: 18,
     paddingHorizontal: 32,
     width: '100%',
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   turnOffButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 22,
     fontWeight: '700',
   },
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   },
   noteToggleButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 10,
+    borderRadius: borderRadius.sm,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
   noteInputContainer: {
     marginTop: 12,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 10,
+    borderRadius: borderRadius.md,
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
@@ -613,7 +614,7 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     padding: 12,
     fontSize: 16,
     color: '#ffffff',
@@ -630,8 +631,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addNoteButton: {
-    backgroundColor: '#17a2b8',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
     paddingVertical: 12,
     paddingHorizontal: 24,
     alignItems: 'center',
@@ -640,11 +641,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   addNoteButtonDisabled: {
-    backgroundColor: '#ced4da',
+    backgroundColor: colors.border,
     opacity: 0.6,
   },
   addNoteButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: '700',
   },

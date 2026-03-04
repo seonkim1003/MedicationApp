@@ -7,6 +7,7 @@ import HistoryService from '../services/HistoryService';
 import { DAYS_OF_WEEK } from '../types';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
+import { colors, cardShadow, borderRadius } from '../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -102,21 +103,21 @@ export default function AdherenceScreen() {
     try {
       const recentHistory = await historyService.getRecentHistory(7);
       const days = [];
-      
+
       for (let i = 6; i >= 0; i--) {
         const date = moment().subtract(i, 'days');
         const dateStr = date.format('YYYY-MM-DD');
-        const count = recentHistory.filter(h => 
+        const count = recentHistory.filter(h =>
           moment(h.takenAt).format('YYYY-MM-DD') === dateStr
         ).length;
-        
+
         days.push({
           date: date.format('MMM DD'),
           day: date.format('ddd'),
           count,
         });
       }
-      
+
       return days;
     } catch (error) {
       console.error('Error getting weekly data:', error);
@@ -127,17 +128,17 @@ export default function AdherenceScreen() {
   const buildWeekSchedule = (meds, alarms, hist, weekStartDate = null) => {
     const schedule = {};
     const weekStart = weekStartDate ? weekStartDate.clone() : currentWeekStart.clone();
-    
+
     for (let i = 0; i < 7; i++) {
       const date = weekStart.clone().add(i, 'days');
       const dateStr = date.format('YYYY-MM-DD');
       const dayOfWeek = date.day() === 0 ? 7 : date.day();
-      
+
       const daySchedule = [];
-      
+
       alarms.forEach(alarm => {
         if (!alarm.isEnabled) return;
-        
+
         if (alarm.daysOfWeek.includes(dayOfWeek)) {
           const medication = meds.find(m => m.id === alarm.medicationId);
           if (medication) {
@@ -152,7 +153,7 @@ export default function AdherenceScreen() {
                 historyDate.isSame(alarmDateTime, 'day') &&
                 Math.abs(historyDate.diff(alarmDateTime, 'minutes')) <= 60;
             });
-            
+
             daySchedule.push({
               ...alarm,
               medication,
@@ -161,13 +162,13 @@ export default function AdherenceScreen() {
           }
         }
       });
-      
+
       daySchedule.sort((a, b) => {
         const timeA = moment(a.time, 'HH:mm');
         const timeB = moment(b.time, 'HH:mm');
         return timeA.diff(timeB);
       });
-      
+
       schedule[dateStr] = {
         date: date,
         dateStr: dateStr,
@@ -175,7 +176,7 @@ export default function AdherenceScreen() {
         isToday: date.isSame(moment(), 'day'),
       };
     }
-    
+
     return schedule;
   };
 
@@ -285,13 +286,13 @@ export default function AdherenceScreen() {
             const dateStr = day.format('YYYY-MM-DD');
             const dayData = weekSchedule[dateStr];
             const isToday = day.isSame(moment(), 'day');
-            
+
             if (!dayData || dayData.schedule.length === 0) return null;
-            
+
             const takenCount = dayData.schedule.filter(item => item.isTaken).length;
             const totalCount = dayData.schedule.length;
             const dayAdherence = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
-            
+
             return (
               <View key={dateStr} style={[styles.daySection, isToday && styles.daySectionToday]}>
                 <View style={styles.dayHeader}>
@@ -310,10 +311,10 @@ export default function AdherenceScreen() {
                     </Text>
                   </View>
                 </View>
-                
+
                 {dayData.schedule.map((item) => (
-                  <View 
-                    key={item.id} 
+                  <View
+                    key={item.id}
                     style={[
                       styles.scheduleItem,
                       item.isTaken && styles.scheduleItemTaken
@@ -350,21 +351,21 @@ export default function AdherenceScreen() {
                     <Text style={styles.medicationName}>{stat.medicationName}</Text>
                     <Text style={[styles.adherenceRate, {
                       color: stat.adherenceRate >= 80 ? '#2ecc71' :
-                             stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
+                        stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
                     }]}>
                       {stat.adherenceRate}%
                     </Text>
                   </View>
                   <View style={styles.progressBar}>
-                    <View 
+                    <View
                       style={[
-                        styles.progressFill, 
-                        { 
+                        styles.progressFill,
+                        {
                           width: `${stat.adherenceRate}%`,
                           backgroundColor: stat.adherenceRate >= 80 ? '#2ecc71' :
-                                         stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
+                            stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
                         }
-                      ]} 
+                      ]}
                     />
                   </View>
                   <View style={styles.adherenceDetails}>
@@ -385,7 +386,7 @@ export default function AdherenceScreen() {
 
         {/* Notes Section Link */}
         <View style={styles.section}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.notesButton}
             onPress={() => navigation.navigate('Notes')}
           >
@@ -403,7 +404,7 @@ export default function AdherenceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -415,27 +416,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     marginTop: 50,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: 24,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   statusCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 24,
     marginBottom: 24,
     borderLeftWidth: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...cardShadow,
   },
   statusHeader: {
     flexDirection: 'row',
@@ -446,12 +443,12 @@ const styles = StyleSheet.create({
   statusMessage: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   statusSubtext: {
     fontSize: 15,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   statusStats: {
@@ -459,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: colors.border,
   },
   statusStatItem: {
     alignItems: 'center',
@@ -467,37 +464,33 @@ const styles = StyleSheet.create({
   statusStatValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#3498db',
+    color: colors.primary,
     marginBottom: 4,
   },
   statusStatLabel: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...cardShadow,
   },
   sectionHeader: {
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 16,
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   chart: {
     marginVertical: 8,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
   },
   weekNavigation: {
     flexDirection: 'row',
@@ -508,32 +501,32 @@ const styles = StyleSheet.create({
   weekNavButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#3498db',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
     minHeight: 36,
     justifyContent: 'center',
   },
   weekNavButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   weekRange: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   daySection: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   daySectionToday: {
-    backgroundColor: '#e7f3ff',
-    borderLeftColor: '#007bff',
+    backgroundColor: colors.primaryLight,
+    borderLeftColor: colors.primaryDark,
   },
   dayHeader: {
     flexDirection: 'row',
@@ -542,24 +535,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: colors.border,
   },
   dayName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   dayNameToday: {
-    color: '#007bff',
+    color: colors.primary,
   },
   dayDate: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '500',
     marginTop: 2,
   },
   dayDateToday: {
-    color: '#007bff',
+    color: colors.primary,
   },
   dayAdherenceBadge: {
     alignItems: 'flex-end',
@@ -567,24 +560,24 @@ const styles = StyleSheet.create({
   dayAdherenceText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   dayAdherenceLabel: {
     fontSize: 12,
-    color: '#7f8c8d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   scheduleItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.sm,
     padding: 12,
     marginBottom: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   scheduleItemTaken: {
-    backgroundColor: '#e8f8f5',
-    borderLeftColor: '#2ecc71',
+    backgroundColor: colors.successLight,
+    borderLeftColor: colors.success,
   },
   scheduleHeader: {
     flexDirection: 'row',
@@ -595,45 +588,45 @@ const styles = StyleSheet.create({
   scheduleTime: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: colors.textPrimary,
   },
   takenBadge: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: colors.success,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
   },
   takenBadgeText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   missedBadge: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: colors.danger,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
   },
   missedBadgeText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   scheduleMedication: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#34495e',
+    color: colors.textPrimary,
   },
   adherenceList: {
     gap: 12,
   },
   adherenceItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: borderRadius.md,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: colors.primary,
   },
   adherenceHeader: {
     flexDirection: 'row',
@@ -644,7 +637,7 @@ const styles = StyleSheet.create({
   medicationName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: colors.textPrimary,
     flex: 1,
   },
   adherenceRate: {
@@ -653,7 +646,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#ecf0f1',
+    backgroundColor: colors.border,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 10,
@@ -669,46 +662,46 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#6c757d',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   emptyText: {
     fontSize: 16,
-    color: '#95a5a6',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 24,
     fontWeight: '500',
   },
   button: {
-    backgroundColor: '#3498db',
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 50,
   },
   buttonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 18,
     fontWeight: 'bold',
   },
   notesButton: {
-    backgroundColor: '#17a2b8',
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.lg,
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 80,
   },
   notesButtonText: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 6,
   },
   notesButtonSubtext: {
-    color: 'white',
+    color: colors.textOnPrimary,
     fontSize: 14,
     fontWeight: '500',
     opacity: 0.9,
