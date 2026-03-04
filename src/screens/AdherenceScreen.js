@@ -1,15 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
 import { DAYS_OF_WEEK } from '../types';
 import moment from 'moment';
 import Toast from 'react-native-toast-message';
-import { colors, cardShadow, borderRadius } from '../theme';
+import { colors, cardShadow, borderRadius, spacing } from '../theme';
+import Svg, { Circle } from 'react-native-svg';
+import Icon from 'react-native-vector-icons/Feather';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Custom Circular Progress Component
+const CircularProgress = ({ size, strokeWidth, percentage, color, icon }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size}>
+        {/* Background Circle */}
+        <Circle
+          stroke={colors.border}
+          fill="none"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+        />
+        {/* Progress Circle */}
+        <Circle
+          stroke={color}
+          fill="none"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+      <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 32, fontWeight: '800', color: colors.textPrimary }}>
+          {percentage}%
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 export default function AdherenceScreen() {
   const navigation = useNavigation();
@@ -21,21 +64,40 @@ export default function AdherenceScreen() {
   const [overallAdherence, setOverallAdherence] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [weeklyData, setWeeklyData] = useState([]);
-  const [currentWeekStart, setCurrentWeekStart] = useState(moment().startOf('week'));
-  const [weekSchedule, setWeekSchedule] = useState({});
-  const [adherenceMessage, setAdherenceMessage] = useState('');
-  const [adherenceColor, setAdherenceColor] = useState('#3498db');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Date selection state
+  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+  const [weekSchedule, setWeekSchedule] = useState({});
+  const [weekDays, setWeekDays] = useState([]);
+
+  const [adherenceMessage, setAdherenceMessage] = useState('');
+  const [adherenceColor, setAdherenceColor] = useState(colors.primary);
+
+  const scrollViewRef = useRef(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   useEffect(() => {
     if (medications.length > 0 || allAlarms.length > 0 || history.length > 0) {
-      const schedule = buildWeekSchedule(medications, allAlarms, history, currentWeekStart);
-      setWeekSchedule(schedule);
+      const schedule = buildScheduleForWeek(medications, allAlarms, history, selectedDate);
+      setWeekSchedule(schedule.scheduleMap);
+      setWeekDays(schedule.daysArray);
+
+      // Attempt to scroll to selected date on load
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          const todayIndex = schedule.daysArray.findIndex(d => d.dateStr === moment().format('YYYY-MM-DD'));
+          if (todayIndex > -1) {
+            scrollViewRef.current.scrollTo({ x: Math.max(0, todayIndex * 65 - SCREEN_WIDTH / 2 + 30), animated: true });
+          }
+        }
+      }, 500);
     }
-  }, [currentWeekStart, medications, allAlarms, history]);
+  }, [medications, allAlarms, history]);
 
   const loadData = async () => {
     try {
@@ -62,7 +124,7 @@ export default function AdherenceScreen() {
         setOverallAdherence(avgRate);
 
         // Calculate best current streak
-        const bestStreak = Math.max(...stats.map(s => s.currentStreak));
+        const bestStreak = stats.length > 0 ? Math.max(...stats.map(s => s.currentStreak)) : 0;
         setCurrentStreak(bestStreak);
 
         if (avgRate >= 90) {
@@ -72,21 +134,23 @@ export default function AdherenceScreen() {
           setAdherenceMessage('Good job! Keep it up!');
           setAdherenceColor('#3498db');
         } else if (avgRate >= 50) {
-          setAdherenceMessage('You\'re on track! Stay consistent!');
+          setAdherenceMessage('You\'re on track! Stay consistent.');
           setAdherenceColor('#f39c12');
         } else {
-          setAdherenceMessage('Let\'s improve together! You can do it!');
+          setAdherenceMessage('Let\'s improve! You can do it.');
           setAdherenceColor('#e74c3c');
         }
+      } else {
+        setOverallAdherence(0);
+        setCurrentStreak(0);
+        setAdherenceMessage('Start tracking to see your stats!');
+        setAdherenceColor(colors.textSecondary);
       }
 
       // Get weekly data
       const weekly = await getWeeklyData(historyService);
       setWeeklyData(weekly);
 
-      // Build weekly schedule
-      const schedule = buildWeekSchedule(loadedMedications, loadedAlarms, loadedHistory, currentWeekStart);
-      setWeekSchedule(schedule);
     } catch (error) {
       console.error('Error loading adherence data:', error);
       Toast.show({
@@ -125,14 +189,26 @@ export default function AdherenceScreen() {
     }
   };
 
-  const buildWeekSchedule = (meds, alarms, hist, weekStartDate = null) => {
-    const schedule = {};
-    const weekStart = weekStartDate ? weekStartDate.clone() : currentWeekStart.clone();
+  const buildScheduleForWeek = (meds, alarms, hist, anchorDateStr) => {
+    const scheduleMap = {};
+    const daysArray = [];
 
-    for (let i = 0; i < 7; i++) {
-      const date = weekStart.clone().add(i, 'days');
+    // Build array of 14 days (7 before today, today, 6 after today)
+    const today = moment();
+    const startDate = today.clone().subtract(7, 'days');
+
+    for (let i = 0; i < 14; i++) {
+      const date = startDate.clone().add(i, 'days');
       const dateStr = date.format('YYYY-MM-DD');
       const dayOfWeek = date.day() === 0 ? 7 : date.day();
+
+      daysArray.push({
+        dateObj: date,
+        dateStr: dateStr,
+        dayName: date.format('dd'),
+        dayNum: date.format('DD'),
+        isToday: date.isSame(today, 'day')
+      });
 
       const daySchedule = [];
 
@@ -169,233 +245,242 @@ export default function AdherenceScreen() {
         return timeA.diff(timeB);
       });
 
-      schedule[dateStr] = {
-        date: date,
-        dateStr: dateStr,
-        schedule: daySchedule,
-        isToday: date.isSame(moment(), 'day'),
-      };
+      scheduleMap[dateStr] = daySchedule;
     }
 
-    return schedule;
+    return { scheduleMap, daysArray };
   };
 
-  const changeWeek = (direction) => {
-    const newWeekStart = currentWeekStart.clone().add(direction, 'weeks');
-    setCurrentWeekStart(newWeekStart);
+  const renderScheduleItem = (item) => {
+    return (
+      <View key={item.id} style={styles.scheduleItemContainer}>
+        <View style={styles.timelineColumn}>
+          <View style={[styles.timelineDot, item.isTaken ? styles.timelineDotTaken : styles.timelineDotMissed]} />
+          <View style={styles.timelineLine} />
+        </View>
+        <View style={styles.scheduleDetailsCard}>
+          <View style={styles.scheduleHeaderRow}>
+            <Text style={styles.scheduleTimeText}>{item.time}</Text>
+            {item.isTaken ? (
+              <View style={styles.badgeTaken}>
+                <Icon name="check" size={12} color={colors.textOnPrimary} />
+                <Text style={styles.badgeTextTaken}>Taken</Text>
+              </View>
+            ) : (
+              <View style={styles.badgeMissed}>
+                <Text style={styles.badgeTextMissed}>Pending/Missed</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.scheduleMedName}>{item.medicationName}</Text>
+          {item.medication?.dosage && (
+            <Text style={styles.scheduleMedDosage}>{item.medication.dosage}</Text>
+          )}
+        </View>
+      </View>
+    );
   };
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading adherence data...</Text>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.loadingText}>Loading tracking data...</Text>
       </View>
     );
   }
 
-  const weekDays = [];
-  for (let i = 0; i < 7; i++) {
-    weekDays.push(currentWeekStart.clone().add(i, 'days'));
-  }
-
   const chartConfig = {
-    backgroundColor: '#ffffff',
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundColor: 'transparent',
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(44, 62, 80, ${opacity})`,
+    color: (opacity = 1) => `rgba(42, 157, 143, ${opacity})`,
+    labelColor: (opacity = 1) => colors.textSecondary,
     style: {
       borderRadius: 16,
     },
+    propsForDots: {
+      r: "4",
+      strokeWidth: "2",
+      stroke: colors.primary
+    },
+    fillShadowGradientFrom: colors.primary,
+    fillShadowGradientFromOpacity: 0.2,
+    fillShadowGradientTo: colors.background,
+    fillShadowGradientToOpacity: 0,
   };
 
   const weeklyChartData = {
     labels: weeklyData.map(d => d.day),
     datasets: [
       {
-        data: weeklyData.map(d => d.count),
-        color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
-        strokeWidth: 2,
+        data: weeklyData.length > 0 ? weeklyData.map(d => d.count) : [0, 0, 0, 0, 0, 0, 0],
+        color: (opacity = 1) => colors.primary,
+        strokeWidth: 3,
       },
     ],
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Medication Adherence</Text>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Tracking Dashboard</Text>
+      </View>
 
-        {/* Overall Status Card */}
-        <View style={[styles.statusCard, { borderLeftColor: adherenceColor }]}>
-          <View style={styles.statusHeader}>
-            <View>
-              <Text style={styles.statusMessage}>{adherenceMessage}</Text>
-              <Text style={styles.statusSubtext}>Your adherence journey</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {/* Dashboard Hero Section (Overall Adherence) */}
+        <View style={styles.dashboardHero}>
+          <View style={styles.heroLeft}>
+            <Text style={styles.heroGreeting}>Overview</Text>
+            <Text style={styles.heroMessage}>{adherenceMessage}</Text>
+
+            <View style={styles.heroStatsRow}>
+              <View style={styles.heroStatItem}>
+                <Icon name="zap" size={20} color={colors.warning} />
+                <View style={{ marginLeft: 8 }}>
+                  <Text style={styles.heroStatValue}>{currentStreak}</Text>
+                  <Text style={styles.heroStatLabel}>Day Streak</Text>
+                </View>
+              </View>
+              <View style={styles.heroStatItem}>
+                <Icon name="package" size={20} color={colors.primary} />
+                <View style={{ marginLeft: 8 }}>
+                  <Text style={styles.heroStatValue}>{medications.length}</Text>
+                  <Text style={styles.heroStatLabel}>Meds</Text>
+                </View>
+              </View>
             </View>
           </View>
-          <View style={styles.statusStats}>
-            <View style={styles.statusStatItem}>
-              <Text style={styles.statusStatValue}>{overallAdherence}%</Text>
-              <Text style={styles.statusStatLabel}>Overall</Text>
-            </View>
-            <View style={styles.statusStatItem}>
-              <Text style={styles.statusStatValue}>{currentStreak}</Text>
-              <Text style={styles.statusStatLabel}>Day Streak</Text>
-            </View>
-            <View style={styles.statusStatItem}>
-              <Text style={styles.statusStatValue}>{medications.length}</Text>
-              <Text style={styles.statusStatLabel}>Medications</Text>
-            </View>
+          <View style={styles.heroRight}>
+            <CircularProgress
+              size={110}
+              strokeWidth={12}
+              percentage={overallAdherence}
+              color={adherenceColor}
+            />
+          </View>
+        </View>
+
+        {/* Horizontal Calendar Schedule */}
+        <View style={styles.scheduleSection}>
+          <Text style={styles.sectionTitle}>Daily Schedule</Text>
+
+          <View style={styles.calendarContainer}>
+            <ScrollView
+              ref={scrollViewRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.calendarScrollContent}
+            >
+              {weekDays.map((day) => {
+                const isSelected = selectedDate === day.dateStr;
+                return (
+                  <TouchableOpacity
+                    key={day.dateStr}
+                    style={[styles.dayButton, isSelected && styles.dayButtonSelected, day.isToday && !isSelected && styles.dayButtonToday]}
+                    onPress={() => setSelectedDate(day.dateStr)}
+                  >
+                    <Text style={[styles.dayButtonTextName, isSelected && styles.dayButtonTextSelected]}>
+                      {day.dayName}
+                    </Text>
+                    <Text style={[styles.dayButtonTextNum, isSelected && styles.dayButtonTextSelected]}>
+                      {day.dayNum}
+                    </Text>
+                    {day.isToday && <View style={[styles.todayIndicator, isSelected && { backgroundColor: colors.card }]} />}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
+
+          <View style={styles.timelineContainer}>
+            {weekSchedule[selectedDate]?.length > 0 ? (
+              weekSchedule[selectedDate].map(renderScheduleItem)
+            ) : (
+              <View style={styles.emptyTimeline}>
+                <Icon name="calendar" size={40} color={colors.border} />
+                <Text style={styles.emptyTimelineText}>No medications scheduled for this day.</Text>
+              </View>
+            )}
           </View>
         </View>
 
         {/* Weekly Activity Chart */}
         {weeklyData.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Last 7 Days Activity</Text>
-            <LineChart
-              data={weeklyChartData}
-              width={SCREEN_WIDTH - 60}
-              height={200}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
+          <View style={styles.chartSection}>
+            <Text style={styles.sectionTitle}>Activity (Last 7 Days)</Text>
+            <View style={styles.chartCard}>
+              <LineChart
+                data={weeklyChartData}
+                width={SCREEN_WIDTH - 48} // Padding
+                height={180}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+                withVerticalLines={false}
+                withHorizontalLines={true}
+              />
+            </View>
           </View>
         )}
 
-        {/* Weekly Schedule */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Weekly Schedule</Text>
-            <View style={styles.weekNavigation}>
-              <TouchableOpacity style={styles.weekNavButton} onPress={() => changeWeek(-1)}>
-                <Text style={styles.weekNavButtonText}>←</Text>
-              </TouchableOpacity>
-              <Text style={styles.weekRange}>
-                {currentWeekStart.format('MMM D')} - {currentWeekStart.clone().add(6, 'days').format('MMM D')}
-              </Text>
-              <TouchableOpacity style={styles.weekNavButton} onPress={() => changeWeek(1)}>
-                <Text style={styles.weekNavButtonText}>→</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {weekDays.map((day, index) => {
-            const dateStr = day.format('YYYY-MM-DD');
-            const dayData = weekSchedule[dateStr];
-            const isToday = day.isSame(moment(), 'day');
-
-            if (!dayData || dayData.schedule.length === 0) return null;
-
-            const takenCount = dayData.schedule.filter(item => item.isTaken).length;
-            const totalCount = dayData.schedule.length;
-            const dayAdherence = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
-
-            return (
-              <View key={dateStr} style={[styles.daySection, isToday && styles.daySectionToday]}>
-                <View style={styles.dayHeader}>
-                  <View>
-                    <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
-                      {DAYS_OF_WEEK.find(d => d.id === (day.day() === 0 ? 7 : day.day()))?.name || day.format('dddd')}
-                    </Text>
-                    <Text style={[styles.dayDate, isToday && styles.dayDateToday]}>
-                      {day.format('MMM D')}
-                    </Text>
-                  </View>
-                  <View style={styles.dayAdherenceBadge}>
-                    <Text style={styles.dayAdherenceText}>{dayAdherence}%</Text>
-                    <Text style={styles.dayAdherenceLabel}>
-                      {takenCount}/{totalCount}
-                    </Text>
-                  </View>
-                </View>
-
-                {dayData.schedule.map((item) => (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.scheduleItem,
-                      item.isTaken && styles.scheduleItemTaken
-                    ]}
-                  >
-                    <View style={styles.scheduleHeader}>
-                      <Text style={styles.scheduleTime}>{item.time}</Text>
-                      {item.isTaken ? (
-                        <View style={styles.takenBadge}>
-                          <Text style={styles.takenBadgeText}>Taken</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.missedBadge}>
-                          <Text style={styles.missedBadgeText}>Missed</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.scheduleMedication}>{item.medicationName}</Text>
-                  </View>
-                ))}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Medication Adherence Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Medication Performance</Text>
+        {/* Medication Performance List */}
+        <View style={styles.performanceSection}>
+          <Text style={styles.sectionTitle}>Performance by Medication</Text>
           {adherenceStats.length > 0 ? (
-            <View style={styles.adherenceList}>
+            <View style={styles.performanceList}>
               {adherenceStats.map((stat) => (
-                <View key={stat.medicationId} style={styles.adherenceItem}>
-                  <View style={styles.adherenceHeader}>
-                    <Text style={styles.medicationName}>{stat.medicationName}</Text>
-                    <Text style={[styles.adherenceRate, {
-                      color: stat.adherenceRate >= 80 ? '#2ecc71' :
-                        stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
-                    }]}>
+                <View key={stat.medicationId} style={styles.performanceItem}>
+                  <View style={styles.perfHeader}>
+                    <Text style={styles.perfMedName}>{stat.medicationName}</Text>
+                    <Text style={[styles.perfRate, { color: stat.adherenceRate >= 80 ? colors.success : stat.adherenceRate >= 50 ? colors.warning : colors.danger }]}>
                       {stat.adherenceRate}%
                     </Text>
                   </View>
-                  <View style={styles.progressBar}>
+
+                  <View style={styles.progressBarContainer}>
                     <View
                       style={[
-                        styles.progressFill,
+                        styles.progressBarFill,
                         {
                           width: `${stat.adherenceRate}%`,
-                          backgroundColor: stat.adherenceRate >= 80 ? '#2ecc71' :
-                            stat.adherenceRate >= 50 ? '#f39c12' : '#e74c3c'
+                          backgroundColor: stat.adherenceRate >= 80 ? colors.success : stat.adherenceRate >= 50 ? colors.warning : colors.danger
                         }
                       ]}
                     />
                   </View>
-                  <View style={styles.adherenceDetails}>
-                    <Text style={styles.detailText}>
-                      Taken: {stat.totalTaken} / {stat.totalAlarms}
-                    </Text>
-                    <Text style={styles.detailText}>
-                      Streak: {stat.currentStreak} days
-                    </Text>
+
+                  <View style={styles.perfFooter}>
+                    <Text style={styles.perfFooterText}>Doses: <Text style={{ fontWeight: '700' }}>{stat.totalTaken}/{stat.totalAlarms}</Text></Text>
+                    <Text style={styles.perfFooterText}>Streak: <Text style={{ fontWeight: '700' }}>{stat.currentStreak}d</Text></Text>
                   </View>
                 </View>
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>No adherence data available</Text>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>Not enough data for individual performance.</Text>
+            </View>
           )}
         </View>
 
-        {/* Notes Section Link */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.notesButton}
-            onPress={() => navigation.navigate('Notes')}
-          >
-            <Text style={styles.notesButtonText}>View All Notes & Symptom Tracking</Text>
-            <Text style={styles.notesButtonSubtext}>
-              {history.filter(h => h.note && h.note.trim().length > 0).length} notes available
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Notes Button */}
+        <TouchableOpacity
+          style={styles.notesButton}
+          onPress={() => navigation.navigate('Notes')}
+        >
+          <View style={styles.notesButtonContent}>
+            <Icon name="file-text" size={24} color={colors.primary} />
+            <View style={{ marginLeft: 16, flex: 1 }}>
+              <Text style={styles.notesButtonTitle}>Symptoms & Notes</Text>
+              <Text style={styles.notesButtonSub}>View your logged health journal</Text>
+            </View>
+            <Icon name="chevron-right" size={24} color={colors.textMuted} />
+          </View>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -406,305 +491,352 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: 24,
   },
   loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  sectionTitle: {
     fontSize: 20,
-    textAlign: 'center',
-    marginTop: 50,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
+
+  // Dashboard Hero
+  dashboardHero: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 32,
+    ...cardShadow,
+  },
+  heroLeft: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroGreeting: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  heroMessage: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+    lineHeight: 28,
+  },
+  heroStatsRow: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  heroStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  heroStatValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  heroStatLabel: {
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
+  heroRight: {
+    marginLeft: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Calendar Horizontal
+  scheduleSection: {
+    marginBottom: 32,
+  },
+  calendarContainer: {
     marginBottom: 24,
+    marginHorizontal: -24, // Pull out of padding
+  },
+  calendarScrollContent: {
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  dayButton: {
+    width: 55,
+    height: 75,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...cardShadow,
+    elevation: 2,
+  },
+  dayButtonToday: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  dayButtonSelected: {
+    backgroundColor: colors.primary,
+  },
+  dayButtonTextName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  dayButtonTextNum: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.textPrimary,
   },
-  statusCard: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 24,
-    marginBottom: 24,
-    borderLeftWidth: 6,
-    ...cardShadow,
+  dayButtonTextSelected: {
+    color: colors.card,
   },
-  statusHeader: {
+  todayIndicator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    marginTop: 4,
+  },
+
+  // Timeline
+  timelineContainer: {
+    paddingLeft: 8,
+  },
+  scheduleItemContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  timelineColumn: {
+    width: 20,
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  timelineDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 3,
+    borderColor: colors.card,
+    backgroundColor: colors.border,
+    zIndex: 2,
+    marginTop: 20,
+  },
+  timelineDotTaken: {
+    backgroundColor: colors.success,
+  },
+  timelineDotMissed: {
+    backgroundColor: colors.danger,
+  },
+  timelineLine: {
+    position: 'absolute',
+    top: 34,
+    bottom: -16,
+    width: 2,
+    backgroundColor: colors.borderLight,
+    zIndex: 1,
+  },
+  scheduleDetailsCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    ...cardShadow,
+    elevation: 1,
+  },
+  scheduleHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
-  statusMessage: {
-    fontSize: 22,
+  scheduleTimeText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  badgeTaken: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.success,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  badgeTextTaken: {
+    fontSize: 11,
     fontWeight: '700',
+    color: colors.textOnPrimary,
+    textTransform: 'uppercase',
+  },
+  badgeMissed: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeTextMissed: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  scheduleMedName: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: 4,
   },
-  statusSubtext: {
+  scheduleMedDosage: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  emptyTimeline: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyTimelineText: {
+    marginTop: 12,
     fontSize: 15,
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  statusStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+
+  // Chart
+  chartSection: {
+    marginBottom: 32,
   },
-  statusStatItem: {
-    alignItems: 'center',
-  },
-  statusStatValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  statusStatLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  section: {
+  chartCard: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: 24,
+    padding: 16,
+    paddingLeft: 0,
     ...cardShadow,
   },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: colors.textPrimary,
-  },
   chart: {
-    marginVertical: 8,
-    borderRadius: borderRadius.lg,
+    borderRadius: 16,
   },
-  weekNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
+
+  // Performance
+  performanceSection: {
+    marginBottom: 24,
   },
-  weekNavButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
-    minHeight: 36,
-    justifyContent: 'center',
+  performanceList: {
+    gap: 16,
   },
-  weekNavButtonText: {
-    color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  weekRange: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  daySection: {
-    backgroundColor: colors.cardAlt,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  daySectionToday: {
-    backgroundColor: colors.primaryLight,
-    borderLeftColor: colors.primaryDark,
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  dayName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  dayNameToday: {
-    color: colors.primary,
-  },
-  dayDate: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  dayDateToday: {
-    color: colors.primary,
-  },
-  dayAdherenceBadge: {
-    alignItems: 'flex-end',
-  },
-  dayAdherenceText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  dayAdherenceLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  scheduleItem: {
+  performanceItem: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.sm,
-    padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  scheduleItemTaken: {
-    backgroundColor: colors.successLight,
-    borderLeftColor: colors.success,
-  },
-  scheduleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  scheduleTime: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  takenBadge: {
-    backgroundColor: colors.success,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
-  },
-  takenBadgeText: {
-    color: colors.textOnPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  missedBadge: {
-    backgroundColor: colors.danger,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
-  },
-  missedBadgeText: {
-    color: colors.textOnPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  scheduleMedication: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  adherenceList: {
-    gap: 12,
-  },
-  adherenceItem: {
-    backgroundColor: colors.cardAlt,
-    borderRadius: borderRadius.md,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    ...cardShadow,
   },
-  adherenceHeader: {
+  perfHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  medicationName: {
-    fontSize: 18,
-    fontWeight: '600',
+  perfMedName: {
+    fontSize: 16,
+    fontWeight: '700',
     color: colors.textPrimary,
     flex: 1,
   },
-  adherenceRate: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  perfRate: {
+    fontSize: 16,
+    fontWeight: '800',
   },
-  progressBar: {
+  progressBarContainer: {
     height: 8,
-    backgroundColor: colors.border,
+    backgroundColor: colors.background,
     borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  progressFill: {
+  progressBarFill: {
     height: '100%',
     borderRadius: 4,
   },
-  adherenceDetails: {
+  perfFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
   },
-  detailText: {
-    fontSize: 14,
+  perfFooterText: {
+    fontSize: 13,
     color: colors.textSecondary,
-    fontWeight: '500',
+  },
+  emptyCard: {
+    backgroundColor: colors.card,
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 24,
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontSize: 15,
   },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  buttonText: {
-    color: colors.textOnPrimary,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+
+  // Notes Button
   notesButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: 20,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    ...cardShadow,
+  },
+  notesButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 80,
+    padding: 20,
   },
-  notesButtonText: {
-    color: colors.textOnPrimary,
-    fontSize: 20,
+  notesButtonTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 6,
+    color: colors.textPrimary,
+    marginBottom: 4,
   },
-  notesButtonSubtext: {
-    color: colors.textOnPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-    opacity: 0.9,
+  notesButtonSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 });
 
