@@ -59,6 +59,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   const [selectedMedicationForGroup, setSelectedMedicationForGroup] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({}); // Track which groups are expanded
   const [expandedMedications, setExpandedMedications] = useState({}); // Track which medications are expanded
+  const [activeFilterGroup, setActiveFilterGroup] = useState('All'); // 'All' or a groupId
 
   const COLOR_CHOICES = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -126,6 +127,16 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
     });
 
     return { grouped, ungrouped };
+  };
+
+  const getFilteredMedications = () => {
+    if (activeFilterGroup === 'All') {
+      return medications;
+    }
+    if (activeFilterGroup === 'Ungrouped') {
+      return medications.filter(med => !med.groupId);
+    }
+    return medications.filter(med => med.groupId === activeFilterGroup);
   };
 
   const openAddMedication = () => {
@@ -861,19 +872,29 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   }
 
   const { grouped, ungrouped } = organizeMedicationsByGroup();
+  const filteredMeds = getFilteredMedications();
+
   const renderMedication = (medication) => {
     const isExpanded = isMedicationExpanded(medication.id);
+    const medicationGroup = groups.find(g => g.id === medication.groupId);
+    const groupColor = medicationGroup?.color || colors.primary;
 
     return (
-      <View key={medication.id} style={styles.medicationItem}>
+      <View key={medication.id} style={[styles.medicationCard, { borderLeftColor: groupColor }]}>
         <TouchableOpacity
-          style={styles.medicationHeader}
+          style={styles.medicationCardHeader}
           onPress={() => toggleMedicationExpansion(medication.id)}
           activeOpacity={0.7}
         >
           <View style={styles.medicationHeaderLeft}>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-            <Text style={styles.medicationName}>{medication.name}</Text>
+            <View style={[styles.medGroupIndicator, { backgroundColor: groupColor }]} />
+            <Text style={styles.medicationCardTitle}>{medication.name}</Text>
+          </View>
+          <View style={styles.medicationHeaderRight}>
+            <View style={styles.pillBadge}>
+              <Text style={styles.pillBadgeText}>{medication.pillCount} Pills</Text>
+            </View>
+            <Text style={styles.expandIconNew}>{isExpanded ? '▼' : '▶'}</Text>
           </View>
         </TouchableOpacity>
 
@@ -911,13 +932,22 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                 <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.medicationDetails}>
-              Pills: {medication.pillCount} |
-              Alarms: {medication.alarms?.length || 0}
-              {medication.pillCount <= 5 && (
-                <Text style={styles.lowPillWarning}> - Low!</Text>
+
+            <View style={styles.medicationStatsRow}>
+              <Text style={styles.medicationStatText}>
+                Alarms: <Text style={styles.medicationStatValue}>{medication.alarms?.length || 0}</Text>
+              </Text>
+              {medicationGroup && (
+                <Text style={styles.medicationStatText}>
+                  | Group: <Text style={styles.medicationStatValue}>{medicationGroup.name}</Text>
+                </Text>
               )}
-            </Text>
+            </View>
+            {medication.pillCount <= 5 && (
+              <View style={styles.lowPillBanner}>
+                <Text style={styles.lowPillWarning}>⚠️ Low Pill Count - Please Refill Soon!</Text>
+              </View>
+            )}
 
             {/* Connected Lights List - Always show beneath medication details */}
             {(() => {
@@ -993,100 +1023,78 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
   return (
     <View style={styles.container}>
+      {/* Horizontal Group Filter */}
+      <View style={styles.filterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+        >
+          <TouchableOpacity
+            style={[styles.filterPill, activeFilterGroup === 'All' && styles.filterPillActive]}
+            onPress={() => setActiveFilterGroup('All')}
+          >
+            <Text style={[styles.filterPillText, activeFilterGroup === 'All' && styles.filterPillTextActive]}>All</Text>
+          </TouchableOpacity>
+
+          {groups.map(group => (
+            <TouchableOpacity
+              key={group.id}
+              style={[
+                styles.filterPill,
+                activeFilterGroup === group.id && styles.filterPillActive,
+                activeFilterGroup === group.id && { backgroundColor: group.color, borderColor: group.color }
+              ]}
+              onPress={() => setActiveFilterGroup(group.id)}
+            >
+              <Text style={[styles.filterPillText, activeFilterGroup === group.id && styles.filterPillTextActive]}>
+                {group.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {ungrouped.length > 0 && (
+            <TouchableOpacity
+              style={[styles.filterPill, activeFilterGroup === 'Ungrouped' && styles.filterPillActive]}
+              onPress={() => setActiveFilterGroup('Ungrouped')}
+            >
+              <Text style={[styles.filterPillText, activeFilterGroup === 'Ungrouped' && styles.filterPillTextActive]}>Ungrouped</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
 
-        {/* Groups Section */}
-        {Object.keys(grouped).length > 0 && (
-          <>
-            {Object.keys(grouped)
-              .map(groupId => {
-                const group = groups.find(g => g.id === groupId);
-                return group ? { group, medications: grouped[groupId] } : null;
-              })
-              .filter(item => item !== null)
-              .sort((a, b) => a.group.name.localeCompare(b.group.name))
-              .map(({ group, medications }) => {
-                const isExpanded = isGroupExpanded(group.id);
-                return (
-                  <View key={group.id} style={styles.section}>
-                    <View style={styles.groupContainer}>
-                      <TouchableOpacity
-                        style={styles.groupHeader}
-                        onPress={() => toggleGroupExpansion(group.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.groupHeaderLeft}>
-                          <View style={[styles.groupColorIndicator, { backgroundColor: group.color || '#3498db' }]} />
-                          <Text style={styles.groupName}>{group.name}</Text>
-                          <Text style={styles.groupMedicationCount}>({medications.length})</Text>
-                          <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
-                        </View>
-                        <View style={styles.groupHeaderButtons}>
-                          <TouchableOpacity
-                            style={styles.editGroupButton}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              openEditGroup(group);
-                            }}
-                          >
-                            <Text style={styles.editGroupButtonText}>Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.deleteGroupButton}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              deleteGroup(group.id);
-                            }}
-                          >
-                            <Text style={styles.deleteGroupButtonText}>X</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </TouchableOpacity>
-                      {isExpanded && (
-                        <View style={styles.groupMedications}>
-                          {medications.map(med => renderMedication(med))}
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-          </>
-        )}
-
-        {/* Ungrouped Medications Section */}
-        {
-          ungrouped.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Ungrouped Medications</Text>
-              {ungrouped.map(med => renderMedication(med))}
+        {/* Filtered Medications List */}
+        <View style={styles.medicationsList}>
+          {filteredMeds.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Text style={styles.emptyText}>No medications found here.</Text>
             </View>
-          )
-        }
+          ) : (
+            filteredMeds.map(med => renderMedication(med))
+          )}
+        </View>
 
-        {/* Empty State */}
-        {
-          medications.length === 0 && (
-            <View style={styles.section}>
-              <Text style={styles.emptyText}>No medications added yet</Text>
-            </View>
-          )
-        }
+        {/* Action Buttons */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity style={styles.primaryActionButton} onPress={openAddMedication}>
+            <Text style={styles.primaryActionText}>+ Add New Medication</Text>
+          </TouchableOpacity>
 
-        {/* Actions */}
-        <View style={[styles.section, { gap: 12 }]}>
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={() => navigation.navigate('ScanMedication')}
-          >
-            <Text style={styles.buttonText}>Scan Medication</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={openAddMedication}>
-            <Text style={styles.buttonText}>Add Medication</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={openCreateGroup}>
-            <Text style={styles.buttonText}>Create Group</Text>
-          </TouchableOpacity>
+          <View style={styles.secondaryActionsRow}>
+            <TouchableOpacity
+              style={styles.secondaryActionButton}
+              onPress={() => navigation.navigate('ScanMedication')}
+            >
+              <Text style={styles.secondaryActionText}>Scan Bottle</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.secondaryActionButton} onPress={openCreateGroup}>
+              <Text style={styles.secondaryActionText}>New Group</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView >
 
@@ -1151,19 +1159,18 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => {
-                    setIsEditVisible(false);
-                    setSelectedMedicationForEdit(null);
-                  }}>
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.button} onPress={updateMedication}>
-                    <Text style={styles.buttonText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
               </ScrollView>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => {
+                  setIsEditVisible(false);
+                  setSelectedMedicationForEdit(null);
+                }}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={updateMedication}>
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Pressable>
@@ -1178,7 +1185,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
       >
         <Pressable style={styles.modalOverlay} onPress={() => setIsAddVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContainerFixed}>
+            <View style={styles.modalContainer}>
               <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
@@ -1231,16 +1238,15 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAddVisible(false)}>
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.button} onPress={saveMedication}>
-                    <Text style={styles.buttonText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
               </ScrollView>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAddVisible(false)}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={saveMedication}>
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Pressable>
@@ -1749,53 +1755,138 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     fontWeight: '500',
   },
-  medicationItem: {
+
+  // --- New Filter Pill Styles ---
+  filterContainer: {
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: 12,
+  },
+  filterScrollContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  filterPill: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
     backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: 18,
-    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: colors.border,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterPillText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  filterPillTextActive: {
+    color: '#fff',
+  },
+
+  // --- New Medication Card Styles ---
+  medicationsList: {
+    paddingBottom: 20,
+  },
+  medicationCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 6, // Colored edge for group association
     ...cardShadow,
   },
-  medicationHeader: {
+  medicationCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   medicationHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  medGroupIndicator: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 10,
+  },
+  medicationCardTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+    flex: 1,
+  },
+  medicationHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pillBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  pillBadgeText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  expandIconNew: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+
+  // --- Stats and Action Area ---
+  medicationStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  medicationStatText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  medicationStatValue: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
+  lowPillBanner: {
+    backgroundColor: '#FFEAA7',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  lowPillWarning: {
+    fontSize: 14,
+    color: '#D35400',
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   medicationHeaderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
+    gap: 8,
+    marginBottom: 12,
     flexWrap: 'wrap',
   },
-  medicationName: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    marginLeft: 8,
-    flex: 1,
-  },
-  medicationDetails: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 24,
-    fontWeight: '500',
-  },
-  lowPillWarning: {
-    fontSize: 16,
-    color: colors.danger,
-    fontWeight: '600',
-  },
+  // removed old medicationDetails and lowPillWarning as they were replaced
   alarmItem: {
     backgroundColor: colors.cardAlt,
     borderRadius: borderRadius.sm,
@@ -1852,29 +1943,70 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '500',
   },
+  // --- Large Action Area Buttons ---
+  actionsContainer: {
+    marginTop: 20,
+    marginBottom: 40,
+    gap: 16,
+  },
+  primaryActionButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...cardShadow,
+  },
+  primaryActionText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  secondaryActionButton: {
+    flex: 1,
+    backgroundColor: colors.cardAlt,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  secondaryActionText: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
   pillButtonsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
-    marginBottom: 4,
+    marginTop: 20,
   },
   pillButton: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingVertical: 16,
     paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    minHeight: 52,
+    minHeight: 56,
   },
   refillButton: {
-    backgroundColor: colors.success,
+    backgroundColor: colors.cardAlt,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   pillButtonText: {
     color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     letterSpacing: 0.3,
   },
   connectedLightsContainer: {
@@ -1921,13 +2053,13 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 100,
-    minHeight: 50,
+    minHeight: 54,
+    flex: 1,
   },
   buttonText: {
     color: colors.textOnPrimary,
@@ -1937,70 +2069,76 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 24,
-    width: '90%',
-    maxWidth: 450,
-    maxHeight: SCREEN_HEIGHT * 0.85,
-    justifyContent: 'flex-start',
-    alignSelf: 'center',
-    overflow: 'hidden',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    width: '100%',
+    maxHeight: SCREEN_HEIGHT * 0.80,
     ...cardShadow,
-    flexShrink: 1,
   },
   modalContainerFixed: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 24,
-    width: 350,
-    height: SCREEN_HEIGHT * 0.6,
-    justifyContent: 'flex-start',
-    alignSelf: 'center',
-    overflow: 'hidden',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    width: '100%',
+    maxHeight: SCREEN_HEIGHT * 0.75,
     ...cardShadow,
   },
   modalScrollView: {
     flexShrink: 1,
-    maxHeight: SCREEN_HEIGHT * 0.85,
   },
   modalScrollContent: {
-    paddingBottom: 5,
-    flexGrow: 0,
-    flexShrink: 1,
+    paddingBottom: 10,
+    paddingTop: 8,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 12,
+    marginBottom: 24,
     color: colors.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.3,
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 4,
   },
   input: {
     backgroundColor: colors.cardAlt,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 14,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 16,
     fontSize: 18,
     color: colors.textPrimary,
-    minHeight: 48,
+    minHeight: 56,
   },
   label: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginTop: 8,
-    marginBottom: 8,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   colorRow: {
     flexDirection: 'row',
@@ -2050,10 +2188,9 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 8,
-    paddingTop: 10,
+    gap: 12,
+    marginTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

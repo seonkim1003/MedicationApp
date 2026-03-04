@@ -364,164 +364,147 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const todayProgressPercent = todayStatus.total > 0
+    ? Math.round((todayStatus.taken / todayStatus.total) * 100)
+    : 0;
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Dashboard</Text>
 
-        <View style={styles.timerSection}>
-          <CircularTimer nextAlarmTime={nextAlarmTime} size={160} strokeWidth={12} />
+        {/* Greeting */}
+        <Text style={styles.greeting}>{getGreeting()}</Text>
+        <Text style={styles.greetingSub}>{moment().format('dddd, MMMM D')}</Text>
+
+        {/* Hero Timer Card */}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Next Medication</Text>
+          <CircularTimer nextAlarmTime={nextAlarmTime} size={150} strokeWidth={10} />
         </View>
 
-        <View style={styles.quickStatsContainer}>
-          <View style={styles.quickStatCard}>
-            <Text style={styles.quickStatValue}>{totalMedications}</Text>
-            <Text style={styles.quickStatLabel}>Medications</Text>
-          </View>
-          <View style={styles.quickStatCard}>
-            <Text style={styles.quickStatValue}>{todayTaken}</Text>
-            <Text style={styles.quickStatLabel}>Taken Today</Text>
-          </View>
-          <View style={styles.quickStatCard}>
-            <Text style={styles.quickStatValue}>{currentStreak}</Text>
-            <Text style={styles.quickStatLabel}>Day Streak</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Medication Status</Text>
-
-          <View style={styles.adherenceCard}>
-            <View style={styles.adherenceHeader}>
-              <Text style={styles.adherenceDayTitle}>Yesterday</Text>
-              {yesterdayStatus.total > 0 && (
-                <View style={[
-                  styles.adherenceBadge,
-                  yesterdayStatus.missed === 0 ? styles.adherenceBadgeSuccess : styles.adherenceBadgeWarning
-                ]}>
-                  <Text style={styles.adherenceBadgeText}>
-                    {yesterdayStatus.missed === 0 ? 'All Taken' : `${yesterdayStatus.missed} Missed`}
-                  </Text>
-                </View>
-              )}
+        {/* Today's Progress Card */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressTitle}>Today's Progress</Text>
+            <View style={[
+              styles.progressBadge,
+              todayProgressPercent === 100 && styles.progressBadgeDone,
+            ]}>
+              <Text style={styles.progressBadgeText}>
+                {todayProgressPercent === 100 ? 'Complete' : `${todayProgressPercent}%`}
+              </Text>
             </View>
-            {yesterdayStatus.total > 0 ? (
-              <View style={styles.adherenceStats}>
-                <View style={styles.adherenceStatItem}>
-                  <Text style={styles.adherenceStatValue}>{yesterdayStatus.taken}</Text>
-                  <Text style={styles.adherenceStatLabel}>Taken</Text>
-                </View>
-                <View style={styles.adherenceStatItem}>
-                  <Text style={[styles.adherenceStatValue, styles.adherenceStatValueMissed]}>
-                    {yesterdayStatus.missed}
-                  </Text>
-                  <Text style={styles.adherenceStatLabel}>Missed</Text>
-                </View>
-                <View style={styles.adherenceStatItem}>
-                  <Text style={styles.adherenceStatValue}>{yesterdayStatus.total}</Text>
-                  <Text style={styles.adherenceStatLabel}>Total</Text>
-                </View>
-              </View>
-            ) : (
-              <Text style={styles.adherenceEmptyText}>No medications scheduled yesterday</Text>
-            )}
           </View>
 
-          <View style={[styles.adherenceCard, styles.adherenceCardToday]}>
-            <View style={styles.adherenceHeader}>
-              <Text style={styles.adherenceDayTitle}>Today</Text>
-              {todayStatus.total > 0 && (
-                <View style={[
-                  styles.adherenceBadge,
-                  todayStatus.missed === 0 && todayStatus.remaining === 0
-                    ? styles.adherenceBadgeSuccess
-                    : todayStatus.missed > 0
-                      ? styles.adherenceBadgeWarning
-                      : styles.adherenceBadgeInfo
-                ]}>
-                  <Text style={styles.adherenceBadgeText}>
-                    {todayStatus.missed === 0 && todayStatus.remaining === 0
-                      ? 'All Done'
-                      : todayStatus.missed > 0
-                        ? `${todayStatus.missed} Missed`
-                        : `${todayStatus.remaining} Remaining`}
-                  </Text>
-                </View>
-              )}
+          {/* Progress Bar */}
+          <View style={styles.progressBarOuter}>
+            <View style={[
+              styles.progressBarInner,
+              { width: `${todayProgressPercent}%` },
+              todayProgressPercent === 100 && styles.progressBarComplete,
+            ]} />
+          </View>
+
+          {/* Stat Chips */}
+          <View style={styles.statChipsRow}>
+            <View style={styles.statChip}>
+              <Text style={styles.statChipValue}>{todayStatus.taken}</Text>
+              <Text style={styles.statChipLabel}>Taken</Text>
             </View>
-            {todayStatus.total > 0 ? (
-              <View style={styles.adherenceStats}>
-                <View style={styles.adherenceStatItem}>
-                  <Text style={styles.adherenceStatValue}>{todayStatus.taken}</Text>
-                  <Text style={styles.adherenceStatLabel}>Taken</Text>
-                </View>
-                {todayStatus.missed > 0 && (
-                  <View style={styles.adherenceStatItem}>
-                    <Text style={[styles.adherenceStatValue, styles.adherenceStatValueMissed]}>
-                      {todayStatus.missed}
-                    </Text>
-                    <Text style={styles.adherenceStatLabel}>Missed</Text>
-                  </View>
-                )}
-                {todayStatus.remaining > 0 && (
-                  <View style={styles.adherenceStatItem}>
-                    <Text style={[styles.adherenceStatValue, styles.adherenceStatValueRemaining]}>
-                      {todayStatus.remaining}
-                    </Text>
-                    <Text style={styles.adherenceStatLabel}>Remaining</Text>
-                  </View>
-                )}
-                <View style={styles.adherenceStatItem}>
-                  <Text style={styles.adherenceStatValue}>{todayStatus.total}</Text>
-                  <Text style={styles.adherenceStatLabel}>Total</Text>
-                </View>
+            {todayStatus.remaining > 0 && (
+              <View style={[styles.statChip, styles.statChipRemaining]}>
+                <Text style={[styles.statChipValue, styles.statChipValueAlt]}>{todayStatus.remaining}</Text>
+                <Text style={styles.statChipLabel}>Left</Text>
               </View>
-            ) : (
-              <Text style={styles.adherenceEmptyText}>No medications scheduled today</Text>
             )}
+            {todayStatus.missed > 0 && (
+              <View style={[styles.statChip, styles.statChipMissed]}>
+                <Text style={[styles.statChipValue, styles.statChipValueDanger]}>{todayStatus.missed}</Text>
+                <Text style={styles.statChipLabel}>Missed</Text>
+              </View>
+            )}
+            <View style={styles.statChip}>
+              <Text style={styles.statChipValue}>{totalMedications}</Text>
+              <Text style={styles.statChipLabel}>Total Meds</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Text style={[styles.statChipValue, styles.statChipValueStreak]}>{currentStreak}</Text>
+              <Text style={styles.statChipLabel}>Streak</Text>
+            </View>
           </View>
         </View>
 
+        {/* Low Pill Alert Banner */}
         {lowPillCount.length > 0 && (
-          <View style={[styles.section, styles.alertSection]}>
-            <Text style={styles.alertTitle}>Low Pill Count</Text>
+          <View style={styles.alertBanner}>
+            <Text style={styles.alertBannerTitle}>Low Supply</Text>
             {lowPillCount.map(med => (
-              <View key={med.id} style={styles.alertItem}>
-                <Text style={styles.alertText}>
-                  {med.name}: Only {med.pillCount} pills left!
-                </Text>
-              </View>
+              <Text key={med.id} style={styles.alertBannerText}>
+                {med.name} - {med.pillCount} pills left
+              </Text>
             ))}
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Today</Text>
+        {/* Yesterday Summary */}
+        {yesterdayStatus.total > 0 && (
+          <View style={styles.yesterdayCard}>
+            <View style={styles.yesterdayHeader}>
+              <Text style={styles.yesterdaySectionTitle}>Yesterday</Text>
+              <View style={[
+                styles.yesterdayBadge,
+                yesterdayStatus.missed === 0
+                  ? styles.yesterdayBadgeGood
+                  : styles.yesterdayBadgeWarn,
+              ]}>
+                <Text style={styles.yesterdayBadgeText}>
+                  {yesterdayStatus.missed === 0 ? 'All Taken' : `${yesterdayStatus.missed} Missed`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.yesterdayStatsRow}>
+              <Text style={styles.yesterdayStatText}>{yesterdayStatus.taken} taken</Text>
+              <Text style={styles.yesterdayStatDivider}> / </Text>
+              <Text style={styles.yesterdayStatText}>{yesterdayStatus.total} total</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Upcoming Medications */}
+        <View style={styles.upcomingSection}>
+          <Text style={styles.upcomingSectionTitle}>Upcoming</Text>
           {upcomingAlarms.length > 0 ? (
             upcomingAlarms.map((item, index) => (
-              <View key={`${item.id}-${index}`} style={styles.medicationCard}>
-                <View style={styles.medicationCardHeader}>
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.timeText}>{item.time}</Text>
+              <View key={`${item.id}-${index}`} style={styles.upcomingCard}>
+                <View style={styles.upcomingCardLeft}>
+                  <View style={[styles.upcomingTimeBadge, { borderLeftColor: item.lightColor || colors.primary }]}>
+                    <Text style={styles.upcomingTimeText}>{item.time}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.takeButton}
-                    onPress={() => markAsTaken(item.medication)}
-                  >
-                    <Text style={styles.takeButtonText}>Take</Text>
-                  </TouchableOpacity>
+                  <View style={styles.upcomingInfo}>
+                    <Text style={styles.upcomingMedName}>{item.medicationName}</Text>
+                    <Text style={styles.upcomingPillCount}>{item.medication.pillCount} pills left</Text>
+                  </View>
                 </View>
-                <Text style={styles.medicationName}>{item.medicationName}</Text>
-                <View style={styles.medicationDetails}>
-                  <View style={[styles.colorDot, { backgroundColor: item.lightColor }]} />
-                  <Text style={styles.detailText}>
-                    {item.medication.pillCount} pills left
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.upcomingTakeButton}
+                  onPress={() => markAsTaken(item.medication)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.upcomingTakeText}>Take</Text>
+                </TouchableOpacity>
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>No upcoming medications today</Text>
+            <View style={styles.emptyStateCard}>
+              <Text style={styles.emptyText}>No upcoming medications today</Text>
+            </View>
           )}
         </View>
 
@@ -540,285 +523,301 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   loadingText: {
-    fontSize: 20,
-    textAlign: 'center',
-    marginTop: 50,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 24,
-    color: colors.textPrimary,
-  },
-  timerSection: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 24,
-    marginBottom: 24,
-    alignItems: 'center',
-    ...cardShadow,
-  },
-  quickStatsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    gap: 12,
-  },
-  quickStatCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 20,
-    alignItems: 'center',
-    ...cardShadow,
-    minHeight: 100,
-  },
-  quickStatValue: {
-    fontSize: 38,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 6,
-  },
-  quickStatLabel: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  section: {
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: 20,
-    marginBottom: 24,
-    ...cardShadow,
-  },
-  alertSection: {
-    backgroundColor: colors.warningLight,
-    borderLeftWidth: 5,
-    borderLeftColor: colors.accent,
-  },
-  alertTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.warningText,
-    marginBottom: 10,
-  },
-  alertItem: {
-    marginBottom: 6,
-  },
-  alertText: {
-    fontSize: 16,
-    color: colors.warningText,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: colors.textPrimary,
-  },
-  medicationCard: {
-    backgroundColor: colors.cardAlt,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  medicationCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  timeContainer: {
-    flex: 1,
-  },
-  timeText: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  takeButton: {
-    backgroundColor: colors.success,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: borderRadius.xl,
-    minWidth: 100,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  takeButtonText: {
-    color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  medicationName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  medicationDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  colorDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    marginRight: 8,
-  },
-  detailText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 24,
-    fontWeight: '600',
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    alignItems: 'center',
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  buttonText: {
-    color: colors.textOnPrimary,
     fontSize: 18,
-    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 60,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
-  adherenceCard: {
-    backgroundColor: colors.cardAlt,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  adherenceCardToday: {
-    backgroundColor: colors.primaryLight,
-    borderLeftColor: colors.primaryDark,
-  },
-  adherenceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  adherenceDayTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+
+  // --- Greeting ---
+  greeting: {
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.textPrimary,
-  },
-  adherenceBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: borderRadius.md,
-    minHeight: 28,
-    justifyContent: 'center',
-  },
-  adherenceBadgeSuccess: {
-    backgroundColor: colors.success,
-  },
-  adherenceBadgeWarning: {
-    backgroundColor: colors.accent,
-  },
-  adherenceBadgeInfo: {
-    backgroundColor: colors.primary,
-  },
-  adherenceBadgeText: {
-    color: colors.textOnPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  adherenceStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  adherenceStatItem: {
-    alignItems: 'center',
-  },
-  adherenceStatValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.success,
+    letterSpacing: -0.5,
     marginBottom: 4,
   },
-  adherenceStatValueMissed: {
-    color: colors.danger,
-  },
-  adherenceStatValueRemaining: {
-    color: colors.primary,
-  },
-  adherenceStatLabel: {
-    fontSize: 14,
+  greetingSub: {
+    fontSize: 16,
     color: colors.textSecondary,
     fontWeight: '600',
+    marginBottom: 24,
   },
-  adherenceEmptyText: {
-    fontSize: 15,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 8,
+
+  // --- Hero Timer ---
+  heroCard: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    marginBottom: 20,
+    alignItems: 'center',
+    ...cardShadow,
   },
-  musicInfoContainer: {
+  heroLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+  },
+
+  // --- Progress Card ---
+  progressCard: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    ...cardShadow,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  progressTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  progressBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  progressBadgeDone: {
+    backgroundColor: colors.success,
+  },
+  progressBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  progressBarOuter: {
+    height: 12,
     backgroundColor: colors.cardAlt,
-    borderRadius: borderRadius.md,
-    padding: 16,
-    marginTop: 8,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  musicName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 12,
-    textAlign: 'center',
+  progressBarInner: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 6,
   },
-  musicButtonsRow: {
+  progressBarComplete: {
+    backgroundColor: colors.success,
+  },
+
+  // --- Stat Chips ---
+  statChipsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 10,
   },
-  musicButton: {
+  statChip: {
     flex: 1,
-    borderRadius: borderRadius.sm,
+    minWidth: 60,
+    backgroundColor: colors.cardAlt,
+    borderRadius: 14,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  musicButtonSecondary: {
-    backgroundColor: colors.textSecondary,
+  statChipRemaining: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
   },
-  musicButtonDanger: {
-    backgroundColor: colors.danger,
+  statChipMissed: {
+    borderColor: colors.danger,
+    borderWidth: 1.5,
   },
-  musicButtonText: {
-    color: colors.textOnPrimary,
-    fontSize: 14,
+  statChipValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  statChipValueAlt: {
+    color: colors.primary,
+  },
+  statChipValueDanger: {
+    color: colors.danger,
+  },
+  statChipValueStreak: {
+    color: colors.accent,
+  },
+  statChipLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // --- Alert Banner ---
+  alertBanner: {
+    backgroundColor: colors.warningLight,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderLeftColor: colors.accent,
+  },
+  alertBannerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.warningText,
+    marginBottom: 6,
+  },
+  alertBannerText: {
+    fontSize: 15,
+    color: colors.warningText,
     fontWeight: '600',
+    lineHeight: 22,
+  },
+
+  // --- Yesterday Card ---
+  yesterdayCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 20,
+    ...cardShadow,
+  },
+  yesterdayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  yesterdaySectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  yesterdayBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  yesterdayBadgeGood: {
+    backgroundColor: colors.successLight,
+  },
+  yesterdayBadgeWarn: {
+    backgroundColor: colors.dangerLight,
+  },
+  yesterdayBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  yesterdayStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  yesterdayStatText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  yesterdayStatDivider: {
+    fontSize: 16,
+    color: colors.textMuted,
+  },
+
+  // --- Upcoming Section ---
+  upcomingSection: {
+    marginBottom: 20,
+  },
+  upcomingSectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 14,
+  },
+  upcomingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...cardShadow,
+  },
+  upcomingCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  upcomingTimeBadge: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderLeftWidth: 4,
+    marginRight: 14,
+  },
+  upcomingTimeText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  upcomingInfo: {
+    flex: 1,
+  },
+  upcomingMedName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 3,
+  },
+  upcomingPillCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  upcomingTakeButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  upcomingTakeText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
+  // --- Empty State ---
+  emptyStateCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    ...cardShadow,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
-
-
-
