@@ -994,7 +994,6 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>My Medications</Text>
 
         {/* Groups Section */}
         {Object.keys(grouped).length > 0 && (
@@ -1056,29 +1055,32 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         )}
 
         {/* Ungrouped Medications Section */}
-        {ungrouped.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ungrouped Medications</Text>
-            {ungrouped.map(med => renderMedication(med))}
-          </View>
-        )}
+        {
+          ungrouped.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ungrouped Medications</Text>
+              {ungrouped.map(med => renderMedication(med))}
+            </View>
+          )
+        }
 
         {/* Empty State */}
-        {medications.length === 0 && (
-          <View style={styles.section}>
-            <Text style={styles.emptyText}>No medications added yet</Text>
-          </View>
-        )}
+        {
+          medications.length === 0 && (
+            <View style={styles.section}>
+              <Text style={styles.emptyText}>No medications added yet</Text>
+            </View>
+          )
+        }
 
         {/* Actions */}
-        <View style={styles.section}>
+        <View style={[styles.section, { gap: 12 }]}>
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
             onPress={() => navigation.navigate('ScanMedication')}
           >
             <Text style={styles.buttonText}>Scan Medication</Text>
           </TouchableOpacity>
-          <View style={{ height: 10 }} />
           <TouchableOpacity style={styles.button} onPress={openAddMedication}>
             <Text style={styles.buttonText}>Add Medication</Text>
           </TouchableOpacity>
@@ -1086,10 +1088,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             <Text style={styles.buttonText}>Create Group</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScrollView >
 
       {/* Edit Medication Modal */}
-      <Modal
+      < Modal
         visible={isEditVisible}
         transparent={true}
         animationType="slide"
@@ -1165,10 +1167,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Add Medication Modal */}
-      <Modal
+      < Modal
         visible={isAddVisible}
         transparent={true}
         animationType="slide"
@@ -1242,10 +1244,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Add Alarm Modal */}
-      <Modal
+      < Modal
         visible={isAlarmVisible}
         transparent={true}
         animationType="slide"
@@ -1355,10 +1357,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Connect Lights Modal */}
-      <Modal
+      < Modal
         visible={isConnectLightsVisible}
         transparent={true}
         animationType="slide"
@@ -1455,10 +1457,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Refill Pills Modal */}
-      <Modal
+      < Modal
         visible={isRefillVisible}
         transparent={true}
         animationType="slide"
@@ -1503,10 +1505,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Create Group Modal */}
-      <Modal
+      < Modal
         visible={isGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1551,10 +1553,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Edit Group Modal */}
-      <Modal
+      < Modal
         visible={isEditGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1598,10 +1600,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Assign Group Modal */}
-      <Modal
+      < Modal
         visible={isAssignGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1664,10 +1666,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Floating Action Button */}
-      <TouchableOpacity
+      < TouchableOpacity
         style={styles.fab}
         onPress={() => {
           if (medications.length === 0) {
@@ -1697,8 +1699,8 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
         activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+ Add Lightbulb</Text>
-      </TouchableOpacity>
-    </View>
+      </TouchableOpacity >
+    </View >
   );
 }
 
@@ -1852,17 +1854,19 @@ const styles = StyleSheet.create({
   },
   pillButtonsContainer: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 4,
   },
   pillButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.sm,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    minHeight: 50,
+    minHeight: 52,
   },
   refillButton: {
     backgroundColor: colors.success,

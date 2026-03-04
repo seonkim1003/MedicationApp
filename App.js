@@ -403,6 +403,7 @@ function MainTabs({ lights, alarmService }) {
       <Tab.Screen
         name="Medications"
         options={{
+          headerShown: false,
           tabBarLabel: 'Meds',
           tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>M</Text>
         }}
@@ -426,6 +427,7 @@ function MainTabs({ lights, alarmService }) {
         name="Lights"
         component={LightsStack}
         options={{
+          headerShown: false,
           tabBarLabel: 'Lights',
           tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>L</Text>
         }}

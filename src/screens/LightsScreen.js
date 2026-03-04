@@ -57,7 +57,6 @@ export default function LightsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Smart Lights</Text>
 
         <View style={styles.section}>
           {lights.length === 0 ? (
