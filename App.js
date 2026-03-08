@@ -278,7 +278,7 @@ export default function App() {
                 name="Alarm"
                 component={AlarmScreen}
                 options={{
-                  presentation: 'modal',
+                  presentation: 'fullScreenModal',
                   headerShown: false,
                   gestureEnabled: false,
                   animationEnabled: true,

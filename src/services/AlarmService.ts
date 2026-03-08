@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import MedicationManager from './MedicationManager';
+import SmartLightService from './SmartLightService';
 import { Medication, MedicationAlarm } from '../types';
 
 Notifications.setNotificationHandler({
@@ -231,7 +232,26 @@ class AlarmService {
     Notifications.addNotificationReceivedListener(async (notification) => {
       const data = notification.request.content.data;
       
-      if (data && data.medicationId) {
+      if (data && data.medicationId && data.alarmId) {
+        // Set connected lights to alarm color instantly when alarm fires
+        try {
+          const allAlarms = await this.medicationManager.loadAlarms();
+          const alarm = allAlarms.find((a: MedicationAlarm) => a.id === data.alarmId);
+          if (alarm && alarm.lightIds?.length > 0 && alarm.lightColor) {
+            const smartLightService = SmartLightService.getInstance();
+            for (const lightId of alarm.lightIds) {
+              try {
+                await smartLightService.setDevicePower(lightId, true);
+                await smartLightService.setDeviceColor(lightId, alarm.lightColor);
+              } catch (lightError) {
+                console.warn('Failed to set light on alarm:', lightId, lightError);
+              }
+            }
+          }
+        } catch (alarmError) {
+          console.warn('Failed to set lights on alarm fire:', alarmError);
+        }
+
         setTimeout(() => {
           if (this.navigationRef && this.navigationRef.current) {
             try {

@@ -94,7 +94,12 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
     try {
       const medicationManager = MedicationManager.getInstance();
       const loaded = await medicationManager.loadMedications();
-      setMedications(loaded);
+      const allAlarms = await medicationManager.loadAlarms();
+      const merged = loaded.map(med => {
+        const medAlarms = allAlarms.filter(a => a.medicationId === med.id);
+        return { ...med, alarms: medAlarms.length > 0 ? medAlarms : (med.alarms || []) };
+      });
+      setMedications(merged);
     } catch (error) {
       console.error('Error loading medications:', error);
     } finally {
@@ -566,13 +571,14 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
       const alarmServiceInstance = AlarmService.getInstance();
 
+      const existingAlarm = (selectedMedication.alarms || []).find(a => a.lightIds?.length > 0);
       const newAlarm = {
         medicationName: selectedMedication.name,
         time: finalTime,
         daysOfWeek: alarmDays,
         isEnabled: true,
-        lightIds: [], // Lights are now connected separately
-        lightColor: '#FF6B6B', // Default color, can be changed in Connect Lights
+        lightIds: existingAlarm?.lightIds || [],
+        lightColor: existingAlarm?.lightColor || '#FF6B6B',
       };
 
       await alarmServiceInstance.createAlarm(selectedMedication.id, newAlarm);
@@ -878,7 +884,6 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
     const isExpanded = isMedicationExpanded(medication.id);
     const medicationGroup = groups.find(g => g.id === medication.groupId);
     const groupColor = medicationGroup?.color || colors.primary;
-
     return (
       <View key={medication.id} style={[styles.medicationCard, { borderLeftColor: groupColor }]}>
         <TouchableOpacity
@@ -949,22 +954,19 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
               </View>
             )}
 
-            {/* Connected Lights List - Always show beneath medication details */}
             {(() => {
-              // Get all unique light IDs from all alarms for this medication
               const allLightIds = new Set();
               (medication.alarms || []).forEach(alarm => {
                 if (alarm.lightIds && alarm.lightIds.length > 0) {
                   alarm.lightIds.forEach(id => allLightIds.add(id));
                 }
               });
-
               const connectedLights = lightsWithCustomNames.filter(light => allLightIds.has(light.id));
 
               return (
                 <View style={styles.connectedLightsContainer}>
                   <Text style={styles.connectedLightsLabel}>
-                    {connectedLights.length > 0 ? 'Connected Lights:' : 'No Lights Connected'}
+                    {connectedLights.length > 0 ? 'Lights connected to this medication:' : 'No lights connected'}
                   </Text>
                   {connectedLights.length > 0 ? (
                     <View style={styles.connectedLightsList}>
@@ -975,31 +977,39 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.noLightsText}>Tap "Light" button to connect lights</Text>
+                    <Text style={styles.noLightsText}>Tap "Light" to connect lights to alarms</Text>
                   )}
                 </View>
               );
             })()}
 
-            {(medication.alarms || []).map((alarm) => (
-              <View key={alarm.id} style={styles.alarmItem}>
-                <View style={styles.alarmHeader}>
-                  <View style={styles.alarmHeaderLeft}>
-                    <Text style={styles.alarmTime}>{alarm.time}</Text>
-                    <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+            {(medication.alarms || []).map((alarm) => {
+              const alarmLights = (alarm.lightIds || []).map(id => lightsWithCustomNames.find(l => l.id === id)).filter(Boolean);
+              return (
+                <View key={alarm.id} style={styles.alarmItem}>
+                  <View style={styles.alarmHeader}>
+                    <View style={styles.alarmHeaderLeft}>
+                      <Text style={styles.alarmTime}>{alarm.time}</Text>
+                      <View style={[styles.alarmColorIndicator, { backgroundColor: alarm.lightColor }]} />
+                    </View>
+                    <TouchableOpacity
+                      style={styles.deleteAlarmButton}
+                      onPress={() => deleteAlarm(alarm.id, medication.id)}
+                    >
+                      <Text style={styles.deleteAlarmButtonText}>X</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={styles.deleteAlarmButton}
-                    onPress={() => deleteAlarm(alarm.id, medication.id)}
-                  >
-                    <Text style={styles.deleteAlarmButtonText}>X</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.alarmDetails}>
+                    Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
+                  </Text>
+                  {alarmLights.length > 0 && (
+                    <Text style={styles.alarmLightsText}>
+                      Lights: {alarmLights.map(l => l.displayName || l.name).join(', ')}
+                    </Text>
+                  )}
                 </View>
-                <Text style={styles.alarmDetails}>
-                  Days: {alarm.daysOfWeek.map(d => DAYS_OF_WEEK.find(day => day.id === d)?.short).join(', ')}
-                </Text>
-              </View>
-            ))}
+              );
+            })}
 
             <View style={styles.pillButtonsContainer}>
               <TouchableOpacity
@@ -1096,10 +1106,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView >
+      </ScrollView>
 
       {/* Edit Medication Modal */}
-      < Modal
+      <Modal
         visible={isEditVisible}
         transparent={true}
         animationType="slide"
@@ -1174,10 +1184,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Add Medication Modal */}
-      < Modal
+      <Modal
         visible={isAddVisible}
         transparent={true}
         animationType="slide"
@@ -1250,10 +1260,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Add Alarm Modal */}
-      < Modal
+      <Modal
         visible={isAlarmVisible}
         transparent={true}
         animationType="slide"
@@ -1261,7 +1271,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
       >
         <Pressable style={styles.modalOverlay} onPress={() => setIsAlarmVisible(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalContainer, styles.modalContainerCompact]}>
+            <View style={styles.modalContainer}>
               <ScrollView
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.modalScrollContent}
@@ -1272,7 +1282,6 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
 
                 <Text style={styles.label}>Time</Text>
 
-                {/* Time Picker with Scrollwheel */}
                 <View style={styles.timePickerContainer}>
                   <DateTimePicker
                     value={alarmDate}
@@ -1285,9 +1294,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                   />
                 </View>
 
-                {/* Time Format Controls */}
                 <View style={styles.timeControlButtons}>
-                  {/* AM/PM Selection (only for 12-hour format) */}
                   {!is24Hour && (
                     <>
                       <TouchableOpacity
@@ -1321,7 +1328,6 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                     </>
                   )}
 
-                  {/* 24-hour format toggle */}
                   <TouchableOpacity
                     style={styles.formatToggleButton}
                     onPress={toggle24HourFormat}
@@ -1332,7 +1338,6 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                   </TouchableOpacity>
                 </View>
 
-                {/* Display selected time */}
                 <View style={styles.selectedTimeContainer}>
                   <Text style={styles.selectedTimeLabel}>Selected Time:</Text>
                   <Text style={styles.selectedTimeText}>{alarmTime}</Text>
@@ -1350,23 +1355,22 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAlarmVisible(false)}>
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.button} onPress={saveAlarm}>
-                    <Text style={styles.buttonText}>Save Alarm</Text>
-                  </TouchableOpacity>
-                </View>
               </ScrollView>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => setIsAlarmVisible(false)}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.button} onPress={saveAlarm}>
+                  <Text style={styles.buttonText}>Save Alarm</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Connect Lights Modal */}
-      < Modal
+      <Modal
         visible={isConnectLightsVisible}
         transparent={true}
         animationType="slide"
@@ -1463,10 +1467,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Refill Pills Modal */}
-      < Modal
+      <Modal
         visible={isRefillVisible}
         transparent={true}
         animationType="slide"
@@ -1511,10 +1515,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Create Group Modal */}
-      < Modal
+      <Modal
         visible={isGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1559,10 +1563,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Edit Group Modal */}
-      < Modal
+      <Modal
         visible={isEditGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1606,10 +1610,10 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Assign Group Modal */}
-      < Modal
+      <Modal
         visible={isAssignGroupModalVisible}
         transparent={true}
         animationType="slide"
@@ -1672,7 +1676,7 @@ export default function MedicationsScreen({ navigation, lights, alarmService }) 
             </View>
           </Pressable>
         </Pressable>
-      </Modal >
+      </Modal>
 
       {/* Floating Action Button */}
       < TouchableOpacity
@@ -1942,6 +1946,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
     fontWeight: '500',
+  },
+  alarmLightsText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginTop: 4,
+    fontWeight: '600',
   },
   // --- Large Action Area Buttons ---
   actionsContainer: {
@@ -2252,13 +2262,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
   },
-  timePickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-    height: 200,
-  },
   timePickerColumn: {
     flex: 1,
     alignItems: 'center',
@@ -2326,8 +2329,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    minHeight: 180,
   },
   timePickerWheel: {
     width: '100%',

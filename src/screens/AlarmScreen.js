@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, BackHandler, TextInput, ScrollView, KeyboardAvoidingView, Dimensions, Vibration } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Notifications from 'expo-notifications';
 import MedicationManager from '../services/MedicationManager';
 import HistoryService from '../services/HistoryService';
+import SmartLightService from '../services/SmartLightService';
 import Toast from 'react-native-toast-message';
 import { colors, cardShadow, borderRadius } from '../theme';
 
@@ -16,8 +17,6 @@ const AlarmScreen = ({ route, navigation }) => {
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
   const soundRef = useRef(null);
-  const uiOpacity = useRef(new Animated.Value(0)).current;
-  const redOverlayOpacity = useRef(new Animated.Value(0)).current;
 
   useLayoutEffect(() => {
     // Prevent gesture-based dismissal
@@ -29,20 +28,9 @@ const AlarmScreen = ({ route, navigation }) => {
 
   useEffect(() => {
     playAlarmSound();
-
-    // Start fade-in animation
-    Animated.parallel([
-      Animated.timing(uiOpacity, {
-        toValue: 1,
-        duration: 15000, // 15 seconds to fade in UI (very slow)
-        useNativeDriver: true,
-      }),
-      Animated.timing(redOverlayOpacity, {
-        toValue: 1,
-        duration: 15000, // 15 seconds to fade in red overlay (very slow)
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate([0, 500, 200, 500, 200, 500], true);
+    }
 
     // Prevent back button from dismissing the alarm on Android only
     let backHandler = null;
@@ -56,6 +44,9 @@ const AlarmScreen = ({ route, navigation }) => {
     return () => {
       if (backHandler) {
         backHandler.remove();
+      }
+      if (Platform.OS !== 'web') {
+        Vibration.cancel();
       }
       stopAlarmSound();
     };
@@ -78,9 +69,15 @@ const AlarmScreen = ({ route, navigation }) => {
       };
 
       await Audio.setAudioModeAsync(audioModeConfig);
+
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/alarm.wav'),
+        { shouldPlay: true, isLooping: true }
+      );
+      soundRef.current = sound;
       setIsPlaying(true);
     } catch (error) {
-      console.error('Error setting up alarm sound:', error);
+      console.error('Error playing alarm sound:', error);
       setIsPlaying(true);
     }
   };
@@ -262,6 +259,27 @@ const AlarmScreen = ({ route, navigation }) => {
         }
       }
 
+      // Reset connected lights to white when alarm is dismissed
+      if (alarmId) {
+        try {
+          const medicationManager = MedicationManager.getInstance();
+          const allAlarms = await medicationManager.loadAlarms();
+          const alarm = allAlarms.find((a) => a.id === alarmId);
+          if (alarm && alarm.lightIds?.length > 0) {
+            const smartLightService = SmartLightService.getInstance();
+            for (const lightId of alarm.lightIds) {
+              try {
+                await smartLightService.setDeviceColor(lightId, '#FFFFFF');
+              } catch (lightError) {
+                console.warn('Failed to reset light on dismiss:', lightId, lightError);
+              }
+            }
+          }
+        } catch (lightResetError) {
+          console.warn('Failed to reset lights on alarm dismiss:', lightResetError);
+        }
+      }
+
       // Navigate back
       navigation.goBack();
     } catch (error) {
@@ -285,24 +303,15 @@ const AlarmScreen = ({ route, navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <View style={styles.fallbackBackground} />
-      <Animated.View
-        style={[
-          styles.backgroundOverlay,
-          { opacity: redOverlayOpacity }
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.uiContainer,
-          { opacity: uiOpacity }
-        ]}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        <View style={styles.fallbackBackground} />
+        <View style={[styles.backgroundOverlay, { opacity: 1 }]} />
+        <View style={styles.uiContainer}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -393,18 +402,20 @@ const AlarmScreen = ({ route, navigation }) => {
             </View>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.danger,
+  },
+  keyboardView: {
+    flex: 1,
     position: 'relative',
-    marginTop: 0,
-    paddingTop: 0,
   },
   fallbackBackground: {
     position: 'absolute',
