@@ -6,11 +6,11 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "node": "24.13.1",
       "android": {
         "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
-        "simulator": true,
         "buildConfiguration": "Debug"
       }
     },
